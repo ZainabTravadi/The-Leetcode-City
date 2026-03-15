@@ -275,8 +275,8 @@ export async function POST(request: Request) {
           .eq("id", defender.id),
       ]);
       // General XP: attacker wins 50, defender gets 30 for being raided
-      admin.rpc("grant_xp", { p_developer_id: attacker.id, p_source: "raid_win", p_amount: 50 }).then();
-      admin.rpc("grant_xp", { p_developer_id: defender.id, p_source: "raid_defend", p_amount: 30 }).then();
+      await admin.rpc("grant_xp", { p_developer_id: attacker.id, p_source: "raid_win", p_amount: 50 });
+      await admin.rpc("grant_xp", { p_developer_id: defender.id, p_source: "raid_defend", p_amount: 30 });
     } else {
       // Defender gets XP for successful defense
       await admin
@@ -284,8 +284,8 @@ export async function POST(request: Request) {
         .update({ raid_xp: (defender.raid_xp ?? 0) + XP_LOSE_DEFENDER })
         .eq("id", defender.id);
       // General XP: attacker loses 15, defender defends 30
-      admin.rpc("grant_xp", { p_developer_id: attacker.id, p_source: "raid_loss", p_amount: 15 }).then();
-      admin.rpc("grant_xp", { p_developer_id: defender.id, p_source: "raid_defend", p_amount: 30 }).then();
+      await admin.rpc("grant_xp", { p_developer_id: attacker.id, p_source: "raid_loss", p_amount: 15 });
+      await admin.rpc("grant_xp", { p_developer_id: defender.id, p_source: "raid_defend", p_amount: 30 });
     }
 
     // Activity feed
@@ -302,9 +302,9 @@ export async function POST(request: Request) {
     });
 
     // Track activity + notify defender
-    touchLastActive(attacker.id);
-    trackDailyMission(attacker.id, "attempt_battle");
-    if (success) trackDailyMission(attacker.id, "win_battle");
+    await touchLastActive(attacker.id);
+    await trackDailyMission(attacker.id, "attempt_battle");
+    if (success) await trackDailyMission(attacker.id, "win_battle");
     sendRaidAlertNotification(
       defender.id,
       defender.github_login,

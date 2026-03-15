@@ -57,9 +57,9 @@ export async function POST(request: Request) {
   }
 
   // Track activity
-  touchLastActive(visitor.id);
-  trackDailyMission(visitor.id, "visit_building");
-  trackDailyMission(visitor.id, "visit_3_buildings");
+  await touchLastActive(visitor.id);
+  await trackDailyMission(visitor.id, "visit_building");
+  await trackDailyMission(visitor.id, "visit_3_buildings");
 
   // No self-visits
   if (visitor.id === building.id) {
@@ -91,7 +91,7 @@ export async function POST(request: Request) {
     await admin.rpc("increment_visit_count", { target_dev_id: building.id });
 
     // Grant XP for visiting a building
-    admin.rpc("grant_xp", { p_developer_id: visitor.id, p_source: "visit", p_amount: 2 }).then();
+    await admin.rpc("grant_xp", { p_developer_id: visitor.id, p_source: "visit", p_amount: 2 });
 
     // Check if building crossed visit milestone (>5 visits today)
     const { count: todayVisits } = await admin

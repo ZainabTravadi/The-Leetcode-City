@@ -183,8 +183,8 @@ export async function POST() {
   }
 
   // Track activity
-  touchLastActive(dev.id);
-  trackDailyMission(dev.id, "checkin");
+  await touchLastActive(dev.id);
+  await trackDailyMission(dev.id, "checkin");
 
   // Detect streak broken: previous streak was >= 7, now reset to 1, and freeze didn't save them
   const previousStreak = dev.app_streak ?? 0;
@@ -265,15 +265,13 @@ export async function POST() {
     });
   }
 
-  // Refresh weekly contributions from LeetCode (fire-and-forget, non-blocking)
-  fetchWeeklyContributions(githubLogin).then((weeklyContribs) => {
-    if (weeklyContribs !== null) {
-      sb.from("developers")
-        .update({ current_week_contributions: weeklyContribs })
-        .eq("id", dev.id)
-        .then();
-    }
-  });
+  // Refresh weekly contributions from LeetCode
+  const weeklyContribs = await fetchWeeklyContributions(githubLogin);
+  if (weeklyContribs !== null) {
+    await sb.from("developers")
+      .update({ current_week_contributions: weeklyContribs })
+      .eq("id", dev.id);
+  }
 
   // Count unseen achievements
   const { count: unseenCount } = await sb

@@ -113,12 +113,12 @@ export async function POST(request: Request) {
   // Grant XP for fly score (score * 0.1)
   const flyXp = Math.floor(score * 0.1);
   if (flyXp > 0) {
-    admin.rpc("grant_xp", { p_developer_id: dev.id, p_source: "fly", p_amount: flyXp }).then();
+    await admin.rpc("grant_xp", { p_developer_id: dev.id, p_source: "fly", p_amount: flyXp });
   }
 
   // Track daily missions for fly scores
-  trackDailyMission(dev.id, "fly_score_50", { score });
-  trackDailyMission(dev.id, "fly_score_150", { score });
+  await trackDailyMission(dev.id, "fly_score_50", { score });
+  await trackDailyMission(dev.id, "fly_score_150", { score });
 
   // Compute rank: count distinct developers who beat this score
   // "Beat" = higher score, OR same score with faster time
