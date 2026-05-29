@@ -3,6 +3,8 @@ import { createServerSupabase } from "@/lib/supabase-server";
 import { getSupabaseAdmin } from "@/lib/supabase";
 import crypto from "crypto";
 
+export const dynamic = "force-dynamic";
+
 function hashKey(key: string): string {
   return crypto.createHash("sha256").update(key).digest("hex");
 }

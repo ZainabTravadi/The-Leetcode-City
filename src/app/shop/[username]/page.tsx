@@ -9,6 +9,8 @@ import type { ShopItem } from "@/lib/items";
 import { calcBuildingDims } from "@/lib/github";
 import ShopClient from "@/components/ShopClient";
 
+export const dynamic = "force-dynamic";
+
 interface Props {
   params: Promise<{ username: string }>;
   searchParams: Promise<{ purchased?: string; gifted?: string; to?: string }>;
