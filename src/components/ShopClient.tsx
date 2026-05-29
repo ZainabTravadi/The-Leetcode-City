@@ -708,6 +708,8 @@ export default function ShopClient({
   const [previewColor, setPreviewColor] = useState<string | null>(null);
   const [previewLedBannerText, setPreviewLedBannerText] = useState<string | null>(null);
   const [previewBillboardImages, setPreviewBillboardImages] = useState<string[] | null>(null);
+  const [savingCustomization, setSavingCustomization] = useState<string | null>(null);
+  const [savedCustomization, setSavedCustomization] = useState<string | null>(null);
   const [autoUploading, setAutoUploading] = useState(false);
   const [purchaseToast, setPurchaseToast] = useState<string | null>(purchasedItem);
   const [giftToast, setGiftToast] = useState<{ item: string; to: string } | null>(
@@ -920,6 +922,8 @@ export default function ShopClient({
   }, []);
 
   const handleSaveCustomization = async (itemId: string, payload: Record<string, any>) => {
+    setSavingCustomization(itemId);
+    setSavedCustomization(null);
     try {
       const res = await fetch("/api/customizations", {
         method: "POST",
@@ -930,6 +934,8 @@ export default function ShopClient({
         const data = await res.json().catch(() => ({}));
         setError(`Failed to save ${itemId}: ${data.error || res.statusText}`);
       } else {
+        setSavedCustomization(itemId);
+        setTimeout(() => setSavedCustomization(null), 2000);
         try{
           if (itemId === "custom_color" && payload.color) {
             localStorage.setItem(
@@ -949,6 +955,8 @@ export default function ShopClient({
       }
     } catch (err: any) {
       setError(`Network error: ${err.message}`);
+    } finally {
+      setSavingCustomization(null);
     }
   };
 
@@ -1738,10 +1746,11 @@ export default function ShopClient({
                           <span className="flex-1 text-[10px] text-cream font-mono">{customColor ?? "#ffffff"}</span>
                           <button
                             onClick={() => handleSaveCustomization("custom_color", { color: customColor })}
-                            className="btn-press px-4 py-1.5 text-[9px] text-bg"
-                            style={{ backgroundColor: ACCENT, boxShadow: `1px 1px 0 0 ${SHADOW}` }}
+                            disabled={savingCustomization === "custom_color"}
+                            className="btn-press px-4 py-1.5 text-[9px] text-bg disabled:opacity-40"
+                            style={{ backgroundColor: savedCustomization === "custom_color" ? "#39d353" : ACCENT, boxShadow: `1px 1px 0 0 ${SHADOW}` }}
                           >
-                            Save Color
+                            {savingCustomization === "custom_color" ? "Saving..." : savedCustomization === "custom_color" ? "Saved!" : "Save Color"}
                           </button>
                         </div>
                       </div>
@@ -1761,10 +1770,11 @@ export default function ShopClient({
                           />
                           <button
                             onClick={() => handleSaveCustomization("led_banner", { text: ledBannerText })}
-                            className="btn-press px-4 py-1.5 text-[9px] text-bg"
-                            style={{ backgroundColor: ACCENT, boxShadow: `1px 1px 0 0 ${SHADOW}` }}
+                            disabled={savingCustomization === "led_banner"}
+                            className="btn-press px-4 py-1.5 text-[9px] text-bg disabled:opacity-40"
+                            style={{ backgroundColor: savedCustomization === "led_banner" ? "#39d353" : ACCENT, boxShadow: `1px 1px 0 0 ${SHADOW}` }}
                           >
-                            Save Text
+                            {savingCustomization === "led_banner" ? "Saving..." : savedCustomization === "led_banner" ? "Saved!" : "Save Text"}
                           </button>
                         </div>
                       </div>
