@@ -58,11 +58,14 @@ jobs:
                     
                     isCreatorAssigned = true;
                     
+                    const isCritical = issue.labels.some(l => l.name === 'level:critical');
+                    const deadlineText = isCritical ? '4 days (96 hours)' : '48 hours';
+
                     await github.rest.issues.createComment({
                       owner: context.repo.owner,
                       repo: context.repo.repo,
                       issue_number: issue.number,
-                      body: `✅ **Admin Approved!**\n\nHi @${authorLogin}, this issue has been reviewed and approved by the project maintainers. Since you raised this issue, you have been automatically assigned to it! 🚀\n\n⏰ **Deadline: You have 48 hours to submit a Pull Request.**\n\n**📝 Important - PR Submission Rules:**\n1. **Branch Name:** Please name your branch starting with the issue number (e.g., \`${issue.number}-feature-name\`).\n2. **PR Description:** Make sure your Pull Request description includes \`Fixes #${issue.number}\`.\n\n🔒 *This conversation will now be locked. Please use your Pull Request for any further discussion about this issue.*`
+                      body: `✅ **Admin Approved!**\n\nHi @${authorLogin}, this issue has been reviewed and approved by the project maintainers. Since you raised this issue, you have been automatically assigned to it! 🚀\n\n⏰ **Deadline: You have ${deadlineText} from this exact moment to submit a Pull Request.**\n\n**📝 Important - PR Submission Rules:**\n1. **Branch Name:** Please name your branch starting with the issue number (e.g., \`${issue.number}-feature-name\`).\n2. **PR Description:** Make sure your Pull Request description includes \`Fixes #${issue.number}\`.\n\n🔒 *This conversation will now be locked. Please use your Pull Request for any further discussion about this issue.*`
                     });
 
                     // Lock the issue
@@ -266,12 +269,15 @@ jobs:
                 assignees: [commenter]
               });
 
-              // Welcome message with 48-hour deadline and PR rules
+              const isCritical = labels.includes('level:critical');
+              const deadlineText = isCritical ? '4 days (96 hours)' : '48 hours';
+
+              // Welcome message with deadline and PR rules
               await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: context.issue.number,
-                body: `Hello @${commenter}, you have been selected to work on this issue! 🚀 Please read the \`CONTRIBUTING.md\` file before starting.\n\n⏰ **Deadline: You have 48 hours to submit a Pull Request for this issue.** If no PR is submitted within that time, the issue will be unassigned and made available for other contributors. This keeps the project moving and ensures everyone gets a fair opportunity!\n\n**📝 Important - PR Submission Rules:**\n1. **Branch Name:** Please name your branch starting with the issue number (e.g., \`${context.issue.number}-feature-name\`).\n2. **PR Description:** Make sure your Pull Request description includes \`Fixes #${context.issue.number}\` so it automatically links to this issue and inherits its labels.\n\n⭐ **If you're excited to contribute, please consider starring this repository to help increase its visibility and support the developer!**\n\n🔒 *This conversation will now be locked. Please use your Pull Request for any further discussion about this issue.*`
+                body: `Hello @${commenter}, you have been selected to work on this issue! 🚀 Please read the \`CONTRIBUTING.md\` file before starting.\n\n⏰ **Deadline: You have ${deadlineText} from this exact moment to submit a Pull Request for this issue.** If no PR is submitted within that time, the issue will be unassigned and made available for other contributors. This keeps the project moving and ensures everyone gets a fair opportunity!\n\n**📝 Important - PR Submission Rules:**\n1. **Branch Name:** Please name your branch starting with the issue number (e.g., \`${context.issue.number}-feature-name\`).\n2. **PR Description:** Make sure your Pull Request description includes \`Fixes #${context.issue.number}\` so it automatically links to this issue and inherits its labels.\n\n⭐ **If you're excited to contribute, please consider starring this repository to help increase its visibility and support the developer!**\n\n🔒 *This conversation will now be locked. Please use your Pull Request for any further discussion about this issue.*`
               });
 
               // Automatically add GSSoC labels if not present
