@@ -35,6 +35,14 @@
     {
       "path": "/api/cron/lc-refresh",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/rotate-daily-challenge",
+      "schedule": "0 0 * * *"
+    },
+    {
+      "path": "/api/cron/sync-arena-problems",
+      "schedule": "0 4 * * *"
     }
   ]
 }

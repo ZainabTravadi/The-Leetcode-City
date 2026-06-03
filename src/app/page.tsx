@@ -4200,6 +4200,13 @@ function HomeContent() {
               {/* Nav + Auth — desktop only (mobile uses bottom bar) */}
               <div className="hidden sm:flex items-center justify-center gap-2">
                 <Link
+                  href="/arena"
+                  className="btn-press border-[3px] border-border bg-bg/80 px-4 py-1.5 text-[10px] backdrop-blur-sm transition-colors hover:border-border-light"
+                  style={{ color: theme.accent, borderColor: `${theme.accent}33` }}
+                >
+                  &#9876; Arena
+                </Link>
+                <Link
                   href={shopHref}
                   className="btn-press border-[3px] border-border bg-bg/80 px-4 py-1.5 text-[10px] backdrop-blur-sm transition-colors hover:border-border-light"
                   style={{ color: theme.accent }}
@@ -4329,6 +4336,13 @@ function HomeContent() {
         !rabbitCinematic &&
         buildings.length > 0 && (
           <nav className="pointer-events-auto fixed inset-x-0 bottom-0 z-[35] flex items-center justify-around border-t-[2px] border-border bg-bg/95 px-1 py-2 backdrop-blur-md sm:hidden">
+            <Link
+              href="/arena"
+              className="btn-press border-[2px] border-border px-3 py-1.5 text-[10px] transition-colors active:bg-white/5"
+              style={{ color: theme.accent }}
+            >
+              &#9876; Arena
+            </Link>
             <Link
               href={shopHref}
               className="btn-press border-[2px] border-border px-3 py-1.5 text-[10px] transition-colors active:bg-white/5"

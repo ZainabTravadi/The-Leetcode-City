@@ -403,19 +403,12 @@ function BuildingRiseAnimation({
 // ─── Focus Highlight (batman spotlight + beacon) ─────────────
 
 const BEACON_HEIGHT = 500;
-const SPOTLIGHT_Y = 400; // cone origin high above
 
 export function FocusBeacon({ height, width, depth, accentColor }: { height: number; width: number; depth: number; accentColor: string }) {
-  const coneRef = useRef<THREE.Mesh>(null);
   const markerRef = useRef<THREE.Group>(null);
 
   useFrame((state) => {
     const t = state.clock.elapsedTime;
-    // Cone pulse
-    if (coneRef.current) {
-      (coneRef.current.material as THREE.MeshBasicMaterial).opacity =
-        0.10 + Math.sin(t * 1.5) * 0.03;
-    }
     // Marker bob + spin
     if (markerRef.current) {
       markerRef.current.position.y = height + 35 + Math.sin(t * 2) * 5;
@@ -423,27 +416,8 @@ export function FocusBeacon({ height, width, depth, accentColor }: { height: num
     }
   });
 
-  const coneRadius = Math.max(width, depth) * 1.2;
-
   return (
     <group>
-      {/* Batman spotlight cone from sky */}
-      <mesh ref={coneRef} position={[0, SPOTLIGHT_Y / 2, 0]}>
-        <cylinderGeometry args={[0, coneRadius, SPOTLIGHT_Y, 32, 1, true]} />
-        <meshBasicMaterial
-          color={accentColor}
-          transparent
-          opacity={0.10}
-          side={THREE.DoubleSide}
-          depthWrite={false}
-        />
-      </mesh>
-
-      {/* Thin bright core beam */}
-      <mesh position={[0, BEACON_HEIGHT / 2, 0]}>
-        <boxGeometry args={[2, BEACON_HEIGHT, 2]} />
-        <meshBasicMaterial color={accentColor} transparent opacity={0.3} depthWrite={false} />
-      </mesh>
 
       {/* Floating diamond marker */}
       <group ref={markerRef} position={[0, height + 35, 0]}>

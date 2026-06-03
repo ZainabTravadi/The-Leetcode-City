@@ -1051,10 +1051,7 @@ function FlyingCityShips({ cityRadius }: { cityRadius: number }) {
                   toneMapped={false}
                 />
               </mesh>
-              {/* Front searchlight beam cone */}
-              <mesh geometry={coneGeo} position={[0, -0.2, 1.4]} scale={[0.4, 0.8, 0.4]} rotation={[Math.PI / 2.3, 0, 0]}>
-                <meshStandardMaterial color="#fef08a" emissive="#fef08a" emissiveIntensity={1.5} transparent opacity={0.25} depthWrite={false} fog={false} />
-              </mesh>
+              {/* Front searchlight beam cone removed */}
             </>
           )}
 
@@ -1125,6 +1122,299 @@ function FlyingCityShips({ cityRadius }: { cityRadius: number }) {
   );
 }
 
+// ─── Moon Glow Shaders ───────────────────────────────────────
+const moonVertexShader = `
+  varying vec3 vNormal;
+  varying vec3 vViewPosition;
+  void main() {
+    vNormal = normalize(normalMatrix * normal);
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    vViewPosition = -mvPosition.xyz;
+    gl_Position = projectionMatrix * mvPosition;
+  }
+`;
+
+const moonFragmentShader = `
+  varying vec3 vNormal;
+  varying vec3 vViewPosition;
+  void main() {
+    vec3 normal = normalize(vNormal);
+    vec3 viewDir = normalize(vViewPosition);
+    float intensity = dot(normal, viewDir);
+    intensity = clamp(intensity, 0.0, 1.0);
+    
+    vec3 coreColor = vec3(1.0, 1.0, 1.0);
+    vec3 edgeColor = vec3(0.85, 0.92, 1.0);
+    
+    float factor = pow(intensity, 1.5);
+    vec3 finalColor = mix(edgeColor, coreColor, factor);
+    
+    float glow = pow(1.0 - intensity, 2.5);
+    vec3 glowColor = vec3(0.6, 0.8, 1.0);
+    
+    vec3 color = finalColor + glowColor * glow * 0.4;
+    gl_FragColor = vec4(color, 1.0);
+  }
+`;
+
+const moonGlowVertexShader = `
+  varying vec3 vNormal;
+  varying vec3 vViewPosition;
+  void main() {
+    vNormal = normalize(normalMatrix * normal);
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    vViewPosition = -mvPosition.xyz;
+    gl_Position = projectionMatrix * mvPosition;
+  }
+`;
+
+const moonGlowFragmentShader = `
+  varying vec3 vNormal;
+  varying vec3 vViewPosition;
+  void main() {
+    vec3 normal = normalize(vNormal);
+    vec3 viewDir = normalize(vViewPosition);
+    
+    float intensity = max(dot(normal, viewDir), 0.0);
+    // Smooth corona halo: peaks near the inner sphere boundary and fades to 0 at the outer edge
+    float glow = pow(1.0 - intensity, 2.0) * intensity * 3.0;
+    vec3 glowColor = vec3(0.8, 0.92, 1.0);
+    
+    gl_FragColor = vec4(glowColor, glow * 0.5);
+  }
+`;
+
+// ─── Sun Shaders ─────────────────────────────────────────────
+const sunVertexShader = `
+  varying vec3 vNormal;
+  varying vec3 vViewPosition;
+  void main() {
+    vNormal = normalize(normalMatrix * normal);
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    vViewPosition = -mvPosition.xyz;
+    gl_Position = projectionMatrix * mvPosition;
+  }
+`;
+
+const sunFragmentShader = `
+  varying vec3 vNormal;
+  varying vec3 vViewPosition;
+  void main() {
+    vec3 normal = normalize(vNormal);
+    vec3 viewDir = normalize(vViewPosition);
+    float intensity = dot(normal, viewDir);
+    intensity = clamp(intensity, 0.0, 1.0);
+    
+    // Warm sun colors: bright white/yellow core, deep gold/orange edge
+    vec3 coreColor = vec3(1.0, 0.98, 0.9);
+    vec3 edgeColor = vec3(1.0, 0.65, 0.1);
+    
+    float factor = pow(intensity, 1.5);
+    vec3 finalColor = mix(edgeColor, coreColor, factor);
+    
+    // Fresnel rim glow
+    float glow = pow(1.0 - intensity, 2.5);
+    vec3 glowColor = vec3(1.0, 0.5, 0.0);
+    
+    vec3 color = finalColor + glowColor * glow * 0.4;
+    gl_FragColor = vec4(color, 1.0);
+  }
+`;
+
+const sunGlowVertexShader = `
+  varying vec3 vNormal;
+  varying vec3 vViewPosition;
+  void main() {
+    vNormal = normalize(normalMatrix * normal);
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    vViewPosition = -mvPosition.xyz;
+    gl_Position = projectionMatrix * mvPosition;
+  }
+`;
+
+const sunGlowFragmentShader = `
+  varying vec3 vNormal;
+  varying vec3 vViewPosition;
+  void main() {
+    vec3 normal = normalize(vNormal);
+    vec3 viewDir = normalize(vViewPosition);
+    
+    float intensity = max(dot(normal, viewDir), 0.0);
+    // Smooth corona halo: peaks near the inner sphere boundary and fades to 0 at the outer edge
+    float glow = pow(1.0 - intensity, 2.0) * intensity * 3.0;
+    vec3 glowColor = vec3(1.0, 0.63, 0.1);
+    
+    gl_FragColor = vec4(glowColor, glow * 0.5);
+  }
+`;
+
+// ─── Starfield Component ───────────────────────────────────────
+function Starfield({ timeRef, active }: { timeRef: React.MutableRefObject<number>; active: boolean }) {
+  const pointsRef = useRef<THREE.Points>(null);
+
+  const { positions, sizes, phases } = useMemo(() => {
+    const count = 400;
+    const pos = new Float32Array(count * 3);
+    const sz = new Float32Array(count);
+    const ph = new Float32Array(count);
+
+    const radius = 3400;
+    for (let i = 0; i < count; i++) {
+      // Spherical coordinates
+      const u = Math.random();
+      const v = Math.random();
+      const theta = u * 2.0 * Math.PI;
+      // Bias phi to keep stars in the upper sky (Y >= 0)
+      const phi = Math.acos(v) * 0.9; 
+
+      const x = radius * Math.sin(phi) * Math.cos(theta);
+      const y = radius * Math.cos(phi);
+      const z = radius * Math.sin(phi) * Math.sin(theta);
+
+      pos[i * 3] = x;
+      pos[i * 3 + 1] = y; 
+      pos[i * 3 + 2] = z;
+
+      sz[i] = 2.0 + Math.random() * 3.0; // star sizes
+      ph[i] = Math.random() * Math.PI * 2.0; // random phase for twinkling
+    }
+
+    return { positions: pos, sizes: sz, phases: ph };
+  }, []);
+
+  const starShader = useMemo(() => {
+    return new THREE.ShaderMaterial({
+      vertexShader: `
+        uniform float uTime;
+        uniform float uNightFactor;
+        attribute float aSize;
+        attribute float aPhase;
+        varying float vOpacity;
+
+        void main() {
+          // Twinkle effect
+          float twinkle = 0.5 + 0.5 * sin(uTime * 2.5 + aPhase);
+          vOpacity = uNightFactor * twinkle;
+
+          vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+          gl_PointSize = aSize * (300.0 / -mvPosition.z);
+          gl_Position = projectionMatrix * mvPosition;
+        }
+      `,
+      fragmentShader: `
+        varying float vOpacity;
+
+        void main() {
+          vec2 coord = gl_PointCoord - vec2(0.5);
+          if (length(coord) > 0.5) discard;
+          gl_FragColor = vec4(1.0, 1.0, 1.0, vOpacity);
+        }
+      `,
+      uniforms: {
+        uTime: { value: 0 },
+        uNightFactor: { value: 0 },
+      },
+      transparent: true,
+      depthWrite: false,
+      fog: false,
+      blending: THREE.AdditiveBlending,
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      starShader.dispose();
+    };
+  }, [starShader]);
+
+  useFrame((state) => {
+    const { camera, clock } = state;
+    if (pointsRef.current) {
+      pointsRef.current.position.copy(camera.position);
+    }
+
+    const t = active ? timeRef.current : 0.0;
+    let nightFactor = 0;
+    if (t < 0.25) {
+      nightFactor = 1.0 - (t / 0.25);
+    } else if (t > 0.75) {
+      nightFactor = (t - 0.75) / 0.25;
+    }
+
+    starShader.uniforms.uTime.value = clock.getElapsedTime();
+    starShader.uniforms.uNightFactor.value = nightFactor;
+  });
+
+  return (
+    <points ref={pointsRef} frustumCulled={false}>
+      <bufferGeometry>
+        <bufferAttribute attach="attributes-position" args={[positions, 3]} />
+        <bufferAttribute attach="attributes-aSize" args={[sizes, 1]} />
+        <bufferAttribute attach="attributes-aPhase" args={[phases, 1]} />
+      </bufferGeometry>
+      <primitive object={starShader} attach="material" />
+    </points>
+  );
+}
+
+// ─── VolumetricMoonRays Component ─────────────────────────────
+function VolumetricMoonRays({ moonGroupRef }: { moonGroupRef: React.RefObject<THREE.Group | null> }) {
+  return null;
+}
+
+// ─── MoonLensFlare Component ──────────────────────────────────
+function MoonLensFlare({ moonGroupRef }: { moonGroupRef: React.RefObject<THREE.Group | null> }) {
+  const flareRef = useRef<THREE.Group>(null);
+  const { camera } = useThree();
+
+  useFrame(() => {
+    if (!flareRef.current || !moonGroupRef.current) return;
+    
+    if (!moonGroupRef.current.visible) {
+      flareRef.current.visible = false;
+      return;
+    }
+
+    // Project the moon coordinates into clip-space coordinates
+    const projPos = moonGroupRef.current.position.clone().project(camera);
+    const isBehindCamera = projPos.z > 1;
+
+    if (isBehindCamera) {
+      flareRef.current.visible = false;
+      return;
+    }
+
+    flareRef.current.visible = true;
+    
+    // Position individual flare rings across the screen vector
+    const children = flareRef.current.children;
+    for (let i = 0; i < children.length; i++) {
+      const child = children[i] as THREE.Mesh;
+      const offsetFactor = (i - children.length / 2) * 0.25;
+      child.position.set(projPos.x * offsetFactor * 200, projPos.y * offsetFactor * 200, 0);
+    }
+  });
+
+  return (
+    <group ref={flareRef}>
+      {/* Primary Optic Element */}
+      <mesh frustumCulled={false}>
+        <ringGeometry args={[0, 9, 32]} />
+        <meshBasicMaterial color="#ffffff" transparent opacity={0.2} blending={THREE.AdditiveBlending} depthTest={false} />
+      </mesh>
+      {/* Secondary Diffused Halos */}
+      <mesh scale={2.5} frustumCulled={false}>
+        <ringGeometry args={[6, 8, 32]} />
+        <meshBasicMaterial color="#d0e5ff" transparent opacity={0.06} blending={THREE.AdditiveBlending} depthTest={false} />
+      </mesh>
+      <mesh scale={4.0} frustumCulled={false}>
+        <ringGeometry args={[11, 12, 32]} />
+        <meshBasicMaterial color="#aaccff" transparent opacity={0.03} blending={THREE.AdditiveBlending} depthTest={false} />
+      </mesh>
+    </group>
+  );
+}
+
 // ─── AtmosphereCycleManager Component ─────────────────────────────
 interface AtmosphereCycleManagerProps {
   theme: any;
@@ -1144,6 +1434,56 @@ export default function AtmosphereCycleManager({
   weatherMode = "sunny",
 }: AtmosphereCycleManagerProps) {
   const { scene } = useThree();
+
+  const moonMaterials = useMemo(() => {
+    const body = new THREE.ShaderMaterial({
+      vertexShader: moonVertexShader,
+      fragmentShader: moonFragmentShader,
+      fog: false,
+    });
+    const glow = new THREE.ShaderMaterial({
+      vertexShader: moonGlowVertexShader,
+      fragmentShader: moonGlowFragmentShader,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      side: THREE.BackSide,
+      depthWrite: false,
+      fog: false,
+    });
+    return { body, glow };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      moonMaterials.body.dispose();
+      moonMaterials.glow.dispose();
+    };
+  }, [moonMaterials]);
+
+  const sunMaterials = useMemo(() => {
+    const body = new THREE.ShaderMaterial({
+      vertexShader: sunVertexShader,
+      fragmentShader: sunFragmentShader,
+      fog: false,
+    });
+    const glow = new THREE.ShaderMaterial({
+      vertexShader: sunGlowVertexShader,
+      fragmentShader: sunGlowFragmentShader,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      side: THREE.BackSide,
+      depthWrite: false,
+      fog: false,
+    });
+    return { body, glow };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      sunMaterials.body.dispose();
+      sunMaterials.glow.dispose();
+    };
+  }, [sunMaterials]);
 
   const fogRef = useRef<THREE.Fog>(null);
   const ambientLightRef = useRef<THREE.AmbientLight>(null);
@@ -1352,14 +1692,14 @@ export default function AtmosphereCycleManager({
       }
 
       // 3. Move Physical Sun and Moon relative to camera (unreachable background elements)
-      const orbitRadius = 3200;
+      const orbitRadius = 2200;
       const sunX = camera.position.x + Math.cos(theta) * orbitRadius;
-      const sunY = camera.position.y + Math.sin(theta) * 2000;
-      const sunZ = camera.position.z - 600;
+      const sunY = camera.position.y + Math.sin(theta) * 1500;
+      const sunZ = camera.position.z - 400;
 
       const moonX = camera.position.x - Math.cos(theta) * orbitRadius;
-      const moonY = camera.position.y - Math.sin(theta) * 2000;
-      const moonZ = camera.position.z + 600;
+      const moonY = camera.position.y - Math.sin(theta) * 1500;
+      const moonZ = camera.position.z + 400;
 
       if (sunGroupRef.current) {
         sunGroupRef.current.position.set(sunX, sunY, sunZ);
@@ -1414,10 +1754,12 @@ export default function AtmosphereCycleManager({
       // 3. Static Physical Sun and Moon Placement relative to camera
       if (themeIndex === 1) { // Sunset
         if (sunGroupRef.current) {
+          const sunDir = new THREE.Vector3(...theme.sunPos).normalize();
+          const targetPos = sunDir.multiplyScalar(2200);
           sunGroupRef.current.position.set(
-            camera.position.x + theme.sunPos[0] * 7,
-            camera.position.y + theme.sunPos[1] * 3,
-            camera.position.z + theme.sunPos[2] * 7
+            camera.position.x + targetPos.x,
+            camera.position.y + targetPos.y,
+            camera.position.z + targetPos.z
           );
           sunGroupRef.current.visible = true;
         }
@@ -1429,10 +1771,12 @@ export default function AtmosphereCycleManager({
           sunGroupRef.current.visible = false;
         }
         if (moonGroupRef.current) {
+          const moonDir = new THREE.Vector3(...theme.fillPos).normalize();
+          const targetPos = moonDir.multiplyScalar(2200);
           moonGroupRef.current.position.set(
-            camera.position.x + theme.fillPos[0] * 7,
-            camera.position.y + theme.fillPos[1] * 4,
-            camera.position.z + theme.fillPos[2] * 7
+            camera.position.x + targetPos.x,
+            camera.position.y + targetPos.y,
+            camera.position.z + targetPos.z
           );
           moonGroupRef.current.visible = true;
         }
@@ -1481,27 +1825,30 @@ export default function AtmosphereCycleManager({
 
       {/* Physical Sun */}
       <group ref={sunGroupRef}>
-        <mesh>
-          <sphereGeometry args={[45, 16, 16]} />
-          <meshBasicMaterial color="#fffae6" fog={false} />
+        <mesh material={sunMaterials.body}>
+          <sphereGeometry args={[70, 32, 32]} />
         </mesh>
-        <mesh>
-          <sphereGeometry args={[70, 16, 16]} />
-          <meshBasicMaterial color="#ffa116" transparent opacity={0.25} side={THREE.BackSide} fog={false} />
+        <mesh material={sunMaterials.glow}>
+          <sphereGeometry args={[105, 32, 32]} />
         </mesh>
       </group>
 
       {/* Physical Moon */}
       <group ref={moonGroupRef}>
-        <mesh>
-          <sphereGeometry args={[35, 16, 16]} />
-          <meshBasicMaterial color="#e6f2ff" fog={false} />
+        <mesh material={moonMaterials.body}>
+          <sphereGeometry args={[60, 32, 32]} />
         </mesh>
-        <mesh>
-          <sphereGeometry args={[55, 16, 16]} />
-          <meshBasicMaterial color="#7090d0" transparent opacity={0.2} side={THREE.BackSide} fog={false} />
+        <mesh material={moonMaterials.glow}>
+          <sphereGeometry args={[90, 32, 32]} />
         </mesh>
       </group>
+
+      {/* Starfield for Night Sky */}
+      <Starfield timeRef={timeRef} active={active} />
+
+      {/* Moonlight Volumetric Rays and Lens Flare */}
+      <VolumetricMoonRays moonGroupRef={moonGroupRef} />
+      <MoonLensFlare moonGroupRef={moonGroupRef} />
     </>
   );
 }

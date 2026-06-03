@@ -140,86 +140,7 @@ export const SpotlightEffect = memo(function SpotlightEffect({
   depth: number;
   color?: string;
 }) {
-  const beam1 = useRef<THREE.Group>(null);
-  const beam2 = useRef<THREE.Group>(null);
-  const frameCount = useRef(0);
-
-  const beamH = height * 3;
-  const topR = Math.max(width, depth) * 0.4;
-  const spread = Math.max(width, depth) * 0.25;
-
-  useFrame((state) => {
-    frameCount.current++;
-    if (frameCount.current % 3 !== 0) return;
-    const t = state.clock.elapsedTime;
-    if (beam1.current) {
-      beam1.current.rotation.x = Math.sin(t * 0.4) * 0.08;
-      beam1.current.rotation.z = Math.cos(t * 0.3) * 0.06;
-    }
-    if (beam2.current) {
-      beam2.current.rotation.x = Math.cos(t * 0.35) * 0.07;
-      beam2.current.rotation.z = Math.sin(t * 0.45) * 0.08;
-    }
-  });
-
-  const beamMat = (
-    <meshBasicMaterial
-      color={color}
-      transparent
-      opacity={0.1}
-      blending={THREE.AdditiveBlending}
-      depthWrite={false}
-      side={THREE.DoubleSide}
-    />
-  );
-
-  const glowMat = (
-    <meshBasicMaterial
-      color={color}
-      transparent
-      opacity={0.04}
-      blending={THREE.AdditiveBlending}
-      depthWrite={false}
-      side={THREE.DoubleSide}
-    />
-  );
-
-  return (
-    <group position={[0, height, 0]}>
-      {/* Beam 1 */}
-      <group ref={beam1} position={[-spread, 0, -spread * 0.5]}>
-        {/* Projector box base */}
-        <mesh position={[0, 0.6, 0]} geometry={_box} scale={[2, 1.2, 2]}>
-          <meshStandardMaterial color="#333340" emissive="#666666" emissiveIntensity={2} toneMapped={false} metalness={0.7} roughness={0.3} />
-        </mesh>
-        {/* Inner beam */}
-        <mesh position={[0, beamH / 2 + 1, 0]}>
-          <coneGeometry args={[topR, beamH, 8, 1, true]} />
-          {beamMat}
-        </mesh>
-        {/* Outer glow */}
-        <mesh position={[0, beamH / 2 + 1, 0]}>
-          <coneGeometry args={[topR * 1.6, beamH * 0.95, 8, 1, true]} />
-          {glowMat}
-        </mesh>
-      </group>
-
-      {/* Beam 2 */}
-      <group ref={beam2} position={[spread, 0, spread * 0.5]}>
-        <mesh position={[0, 0.6, 0]} geometry={_box} scale={[2, 1.2, 2]}>
-          <meshStandardMaterial color="#333340" emissive="#666666" emissiveIntensity={2} toneMapped={false} metalness={0.7} roughness={0.3} />
-        </mesh>
-        <mesh position={[0, beamH / 2 + 1, 0]}>
-          <coneGeometry args={[topR, beamH, 8, 1, true]} />
-          {beamMat}
-        </mesh>
-        <mesh position={[0, beamH / 2 + 1, 0]}>
-          <coneGeometry args={[topR * 1.6, beamH * 0.95, 8, 1, true]} />
-          {glowMat}
-        </mesh>
-      </group>
-    </group>
-  );
+  return null;
 });
 
 // ─── Rooftop Fire ────────────────────────────────────────────
@@ -1849,30 +1770,9 @@ export const TierSkyBeam = memo(function TierSkyBeam({
   color: string;
   prismatic?: boolean;
 }) {
-  const meshRef = useRef<THREE.Mesh>(null);
-  const frameCount = useRef(0);
-
-  useFrame((state) => {
-    if (!meshRef.current) return;
-    frameCount.current++;
-    if (frameCount.current % 2 !== 0) return;
-    const t = state.clock.elapsedTime;
-    const mat = meshRef.current.material as THREE.MeshBasicMaterial;
-    mat.opacity = 0.04 + Math.sin(t * 0.8) * 0.02;
-    if (prismatic) {
-      const hue = (t * 0.05) % 1;
-      mat.color.setHSL(hue, 0.8, 0.7);
-    }
-  });
-
-  const beamH = 400;
-
-  return (
-    <mesh ref={meshRef} position={[0, height + beamH / 2, 0]} geometry={_box} scale={[3, beamH, 3]}>
-      <meshBasicMaterial color={color} transparent opacity={0.05} blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
-    </mesh>
-  );
+  return null;
 });
+
 
 // ─── Accepted Badge (crown zone) ─────────────────────────────
 // Floating neon "AC" sign that glows green
