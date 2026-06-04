@@ -24,7 +24,7 @@ export interface PurchaseRecord {
   id: string;
   developer_id: number;
   item_id: string;
-  provider: "stripe" | "abacatepay" | "free" | "achievement";
+  provider: "stripe" | "abacatepay" | "cashfree" | "free" | "achievement";
   provider_tx_id: string | null;
   amount_cents: number;
   currency: "usd" | "brl";
