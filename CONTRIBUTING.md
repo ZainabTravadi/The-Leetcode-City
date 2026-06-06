@@ -28,7 +28,7 @@ The app runs on [http://localhost:3001](http://localhost:3001).
 
 ## Requirements
 
-- Node.js 18+
+- Node.js 24+
 - npm
 - git
 
