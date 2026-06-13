@@ -494,7 +494,7 @@ export async function getAuthenticatedDeveloper(req: Request) {
 /** Encrypt hidden tests using AES-256-CBC */
 export function encryptHiddenTests(tests: any[]): { iv: string; encryptedData: string } {
   const algorithm = "aes-256-cbc";
-  const key = crypto.createHash("sha256").update(ENCRYPTION_KEY).digest();
+  const key = crypto.createHash("sha256").update(ENCRYPTION_KEY!).digest();
   const iv = crypto.randomBytes(16);
   
   const cipher = crypto.createCipheriv(algorithm, key, iv);
