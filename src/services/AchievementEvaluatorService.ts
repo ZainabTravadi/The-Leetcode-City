@@ -1,4 +1,3 @@
-// ✅ Correct Path Import Alias specified by the project guidelines
 import { supabase } from '@/src/config/supabaseClient';
 
 export class AchievementEvaluatorService {
@@ -10,7 +9,7 @@ export class AchievementEvaluatorService {
 
     try {
       const { data, error } = await supabase
-        .from("developers") // ✅ Targets the correct "developers" table path
+        .from("developers")
         .select("*")
         .eq("id", developerId)
         .single();
@@ -18,7 +17,6 @@ export class AchievementEvaluatorService {
       if (error) throw error;
       return data;
     } catch (err) {
-      console.error("[AchievementEvaluator Evaluation Error]:", err);
       return null;
     }
   }
