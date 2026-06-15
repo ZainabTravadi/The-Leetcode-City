@@ -6,6 +6,7 @@ import { createBrowserSupabase } from "@/lib/supabase";
 import { ROADMAP_PHASES, VOTABLE_ITEM_IDS } from "@/lib/roadmap-data";
 import type { RoadmapPhase, RoadmapItem, ItemStatus } from "@/lib/roadmap-data";
 import { toggleVote } from "./actions";
+import { performVoteWithRollback } from "./vote-helper";
 
 const ACCENT = "#ffa116";
 const CREAM = "#e8dcc8";
@@ -171,6 +172,8 @@ export default function RoadmapClient({
   );
 }
 
+// performVoteWithRollback exported from ./vote-helper
+
 /* ─── Phase Block ─── */
 function PhaseBlock({
   phase,
@@ -260,7 +263,7 @@ function ItemRow({
 
   const [optimistic, setOptimistic] = useOptimistic(
     { votes: initialVotes, hasVoted: initialHasVoted },
-    (state, _action: "toggle") => ({
+    (state, _: "toggle") => ({
       votes: state.hasVoted ? state.votes - 1 : state.votes + 1,
       hasVoted: !state.hasVoted,
     })
@@ -272,8 +275,7 @@ function ItemRow({
       return;
     }
     startTransition(async () => {
-      setOptimistic("toggle");
-      await toggleVote(item.id);
+      await performVoteWithRollback({ setOptimistic, toggleVoteFn: toggleVote, itemId: item.id });
     });
   }
 
