@@ -91,9 +91,9 @@ export default function RoadmapClient({
           <h1 className="text-3xl text-cream md:text-4xl">
             Road<span style={{ color: ACCENT }}>map</span>
           </h1>
-          <p className="mt-3 text-xs text-muted normal-case">
-            What we've built, what we're building, and what's coming next
-          </p>
+            <p className="mt-3 text-xs text-muted normal-case">
+              What we&apos;ve built, what we&apos;re building, and what&apos;s coming next
+            </p>
         </div>
 
         {/* Progress bar */}
@@ -171,8 +171,6 @@ export default function RoadmapClient({
     </main>
   );
 }
-
-// performVoteWithRollback exported from ./vote-helper
 
 /* ─── Phase Block ─── */
 function PhaseBlock({
@@ -263,7 +261,7 @@ function ItemRow({
 
   const [optimistic, setOptimistic] = useOptimistic(
     { votes: initialVotes, hasVoted: initialHasVoted },
-    (state, _: "toggle") => ({
+    (state) => ({
       votes: state.hasVoted ? state.votes - 1 : state.votes + 1,
       hasVoted: !state.hasVoted,
     })
