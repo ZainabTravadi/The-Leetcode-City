@@ -12,37 +12,60 @@ vi.mock("@/lib/supabase-server", () => ({
 }));
 
 // We'll provide a mock getSupabaseAdmin that lets us observe calls
-const upsertSpy = vi.fn(async () => ({ error: null }));
-const insertSpy = vi.fn(async () => ({ error: null }));
-const deleteSpy = vi.fn(async () => ({ error: null }));
+// Types for the mocked Supabase pieces used by the action
+type MaybeSingleResult = { data: unknown | null };
+
+interface SelectEq {
+  eq(col: string, val?: string | number): SelectEq;
+  maybeSingle(): Promise<MaybeSingleResult>;
+}
+
+interface RoadmapFromWithExisting {
+  __existing?: MaybeSingleResult;
+  select(): SelectEq;
+  delete(): { eq(col: string, val: string | number): { error: null } };
+  insert(row: Record<string, unknown>): { error: null };
+  upsert(row: Record<string, unknown>, opts?: Record<string, unknown>): { error: null };
+}
+
+interface AdminClient {
+  from(table: "developers"): { select(): { eq(col: string, val?: string | number): { single(): Promise<{ data: { id: number } }>; }; }; };
+  from(table: "roadmap_votes"): RoadmapFromWithExisting;
+  from(table: string): unknown;
+}
+
+const upsertSpy = vi.fn<Promise<{ error: null }>, [Record<string, unknown>, Record<string, unknown>?]>(async () => ({ error: null }));
+const insertSpy = vi.fn<Promise<{ error: null }>, [Record<string, unknown>]>(async () => ({ error: null }));
+const deleteSpy = vi.fn<Promise<{ error: null }>, [string, string | number]>(async () => ({ error: null }));
 
 // Create a single admin object so tests can mutate its returned "from" instance
 // Shared roadmap_votes from-object so tests can mutate its __existing field
-const roadmapFromObj: any = {
-  select: () => ({
-    eq: function () {
-      return this;
-    },
-    maybeSingle: async function () {
-      return (roadmapFromObj as any).__existing ?? { data: null };
-    },
-  }),
-  delete: () => ({ eq: (col: string, val: any) => { deleteSpy(col, val); return { error: null }; } }),
-  insert: (row: any) => { insertSpy(row); return { error: null }; },
-  upsert: (row: any, opts: any) => { upsertSpy(row, opts); return { error: null }; },
+const roadmapFromObj: RoadmapFromWithExisting = {
+  select: () => {
+    const obj: SelectEq = {
+      eq(col: string, val?: string | number) {
+        return obj;
+      },
+      maybeSingle: async () => roadmapFromObj.__existing ?? { data: null },
+    };
+    return obj;
+  },
+  delete: () => ({ eq: (col: string, val: string | number) => { deleteSpy(col, val); return { error: null }; } }),
+  insert: (row: Record<string, unknown>) => { insertSpy(row); return { error: null }; },
+  upsert: (row: Record<string, unknown>, opts?: Record<string, unknown>) => { upsertSpy(row, opts); return { error: null }; },
 };
 
-const adminObj: any = {
+const adminObj: AdminClient = {
   from(table: string) {
     if (table === "developers") {
       return {
-        select: () => ({ eq: () => ({ single: async () => ({ data: { id: 42 } }) }) }),
+        select: () => ({ eq: (col: string, val?: string | number) => ({ single: async () => ({ data: { id: 42 } }) }) }),
       };
     }
     if (table === "roadmap_votes") {
       return roadmapFromObj;
     }
-    return { select: () => ({ maybeSingle: async () => ({ data: null }) }) };
+    return { select: () => ({ maybeSingle: async () => ({ data: null }) }) } as unknown;
   }
 };
 
@@ -68,9 +91,9 @@ describe("toggleVote idempotency behaviour", () => {
 
   it("adds a vote when none exists (calls upsert)", async () => {
     // Ensure roadmap_votes select.maybeSingle returns no existing vote
-    const admin = (await import("@/lib/supabase")).getSupabaseAdmin();
+    const admin = (await import("@/lib/supabase")).getSupabaseAdmin() as AdminClient;
     const fromObj = admin.from("roadmap_votes");
-    (fromObj as any).__existing = { data: null };
+    fromObj.__existing = { data: null };
 
     await toggleVote("feature_x");
 
@@ -79,16 +102,16 @@ describe("toggleVote idempotency behaviour", () => {
   });
 
   it("removes vote when existing row present (calls delete)", async () => {
-    const admin = (await import("@/lib/supabase")).getSupabaseAdmin();
+    const admin = (await import("@/lib/supabase")).getSupabaseAdmin() as AdminClient;
     const fromObj = admin.from("roadmap_votes");
-    (fromObj as any).__existing = { data: { id: 99 } };
+    fromObj.__existing = { data: { id: 99 } };
 
     await toggleVote("feature_x");
 
     expect(deleteSpy).toHaveBeenCalled();
     // If available, verify the second arg was the expected id
-    if ((deleteSpy as any).mock?.calls?.[0]) {
-      expect((deleteSpy as any).mock.calls[0][1]).toBe(99);
+    if (deleteSpy.mock.calls[0]) {
+      expect(deleteSpy.mock.calls[0][1]).toBe(99);
     }
     expect(upsertSpy).not.toHaveBeenCalled();
     expect(insertSpy).not.toHaveBeenCalled();
