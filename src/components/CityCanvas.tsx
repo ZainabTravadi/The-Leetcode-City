@@ -26,6 +26,7 @@ import { useWeather } from '@/context/WeatherContext';
 import { RainParticles } from './weather/RainParticles';
 import { RainRippleGround } from './weather/RainRippleGround';
 import OuterWildlands from "./OuterWildlands";
+import TrafficSystem from "./TrafficSystem";
 
 // ─── Theme Definitions ───────────────────────────────────────
 
@@ -2211,8 +2212,8 @@ export default function CityCanvas({
 
   return (
     <Canvas
-      camera={{ position: [400, 450, 600], fov: 55, near: 0.5, far: 4000 }}
-      dpr={1}
+      camera={{ position: [400, 450, 600], fov: 55, near: 1.0, far: 4000 }}
+      dpr={[1, 2]}
       onCreated={({ gl, scene }) => {
         try {
           // Keep the canvas pixelated via CSS; don't override the Canvas `dpr` prop here
@@ -2256,7 +2257,7 @@ export default function CityCanvas({
           console.warn("CityCanvas: failed to enforce nearest filtering", e);
         }
       }}
-      gl={{ antialias: false, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.3 }}
+      gl={{ antialias: true, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.3 }}
       style={{ position: "fixed", inset: 0, width: "100vw", height: "100vh" }}
     >
       {showPerf && <Stats />}
@@ -2335,9 +2336,8 @@ export default function CityCanvas({
 
       {/* Outer Wildlands — rendered when player has traveled to the new world */}
       {hasTraveledToNewWorld && (
-        <OuterWildlands cityRadius={cityRadius} themeIndex={themeIndex} />
-      )}
-
+  <OuterWildlands cityRadius={cityRadius} themeIndex={themeIndex} />
+)}
 
 
       {!hasTraveledToNewWorld && (
@@ -2382,7 +2382,7 @@ export default function CityCanvas({
           />
 
           <InstancedDecorations items={decorations} roadMarkingColor={t.roadMarkingColor} sidewalkColor={t.sidewalkColor} />
-
+          <TrafficSystem />
           {!wallpaperMode && skyAds && skyAds.length > 0 && (
             <>
               <SkyAds ads={skyAds} cityRadius={cityRadius} flyMode={flyMode} onAdClick={onAdClick} onAdViewed={onAdViewed} />
