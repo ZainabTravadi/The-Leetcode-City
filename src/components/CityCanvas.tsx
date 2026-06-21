@@ -17,6 +17,8 @@ import type { RaidExecuteResponse } from "@/lib/raid";
 import FounderSpire from "./FounderSpire";
 import LeaderboardHolograms from "./LeaderboardHolograms";
 import Colosseum from "./Colosseum";
+import EArcadeLandmark from "./EArcadeLandmark";
+import type { CityPlayer } from "@/lib/multiplayer/types";
 import WhiteRabbit from "./WhiteRabbit";
 import CelebrationEffect from "./CelebrationEffect";
 import WallpaperParallax from "./WallpaperParallax";
@@ -25,7 +27,7 @@ import AtmosphereCycleManager from "./AtmosphereCycleManager";
 import { useWeather } from '@/context/WeatherContext';
 import { RainParticles } from './weather/RainParticles';
 import { RainRippleGround } from './weather/RainRippleGround';
-import OuterWildlands from "./OuterWildlands";
+import TrafficSystem from "./TrafficSystem";
 
 // ─── Theme Definitions ───────────────────────────────────────
 
@@ -2107,6 +2109,8 @@ interface Props {
   onReturnToCity?: () => void;
   initialFlightPos?: THREE.Vector3 | null;
   initialFlightYaw?: number | null;
+  onEArcadeClick?: () => void;
+  multiplayerPlayers?: Map<string, CityPlayer>;
 }
 
 // Dynamically adjust scene exposure based on city energy (devs coding)
@@ -2169,6 +2173,7 @@ export default function CityCanvas({
   raidDefender,
   onRaidPhaseComplete,
   onLandmarkClick,
+  onEArcadeClick,
   rabbitSighting,
   onRabbitCaught,
   rabbitCinematic,
@@ -2193,6 +2198,7 @@ export default function CityCanvas({
   onReturnToCity,
   initialFlightPos,
   initialFlightYaw,
+  multiplayerPlayers,
 }: Props) {
   const { isRaining } = useWeather();
   const t = THEMES[themeIndex] ?? THEMES[0];
@@ -2211,8 +2217,8 @@ export default function CityCanvas({
 
   return (
     <Canvas
-      camera={{ position: [400, 450, 600], fov: 55, near: 0.5, far: 4000 }}
-      dpr={1}
+      camera={{ position: [400, 450, 600], fov: 55, near: 1.0, far: 4000 }}
+      dpr={[1, 2]}
       onCreated={({ gl, scene }) => {
         try {
           // Keep the canvas pixelated via CSS; don't override the Canvas `dpr` prop here
@@ -2256,7 +2262,7 @@ export default function CityCanvas({
           console.warn("CityCanvas: failed to enforce nearest filtering", e);
         }
       }}
-      gl={{ antialias: false, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.3 }}
+      gl={{ antialias: true, powerPreference: "high-performance", toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1.3 }}
       style={{ position: "fixed", inset: 0, width: "100vw", height: "100vh" }}
     >
       {showPerf && <Stats />}
@@ -2333,16 +2339,15 @@ export default function CityCanvas({
         </>
       )}
 
-      {/* Outer Wildlands — rendered when player has traveled to the new world */}
-      {hasTraveledToNewWorld && (
-        <OuterWildlands cityRadius={cityRadius} themeIndex={themeIndex} />
-      )}
-
-
-
       {!hasTraveledToNewWorld && (
         <>
           <FounderSpire onClick={onLandmarkClick ?? (() => { })} />
+          <EArcadeLandmark
+            onClick={onEArcadeClick ?? (() => { })}
+            themeAccent={t.building.accent}
+            themeWindowLit={t.building.windowLit}
+            themeFace={t.building.face}
+          />
           <Colosseum />
           <LeaderboardHolograms buildings={buildings} onBuildingClick={onBuildingClick} />
 
@@ -2379,10 +2384,11 @@ export default function CityCanvas({
             cityEnergy={cityEnergy}
             timeRef={timeRef}
             weatherMode={weatherMode}
+            multiplayerPlayers={multiplayerPlayers}
           />
 
           <InstancedDecorations items={decorations} roadMarkingColor={t.roadMarkingColor} sidewalkColor={t.sidewalkColor} />
-
+          <TrafficSystem />
           {!wallpaperMode && skyAds && skyAds.length > 0 && (
             <>
               <SkyAds ads={skyAds} cityRadius={cityRadius} flyMode={flyMode} onAdClick={onAdClick} onAdViewed={onAdViewed} />

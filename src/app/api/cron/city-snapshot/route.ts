@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase";
+import { serializeDeveloper } from "@/lib/serialize";
 
 const STORAGE_BUCKET = "city-data";
 const STORAGE_PATH = "snapshot.json";
@@ -37,6 +38,9 @@ async function fetchAll<T>(
  */
 export async function GET(request: NextRequest) {
   const auth = request.headers.get("authorization");
+  if (!process.env.CRON_SECRET) {
+    return NextResponse.json({ error: "Server misconfigured" }, { status: 500 });
+  }
   if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -73,7 +77,7 @@ export async function GET(request: NextRequest) {
         sb,
         "developer_customizations",
         "developer_id, item_id, config",
-        (q) => q.in("item_id", ["custom_color", "billboard", "loadout", "led_banner"]),
+        (q) => q.in("item_id", ["custom_color", "billboard", "loadout", "building_style", "led_banner"]),
       ),
       fetchAll<{ developer_id: number; achievement_id: string }>(
         sb,
@@ -109,6 +113,7 @@ export async function GET(request: NextRequest) {
   const billboardImagesMap: Record<number, string[]> = {};
   const ledBannerTextMap: Record<number, string> = {};
   const loadoutMap: Record<number, { crown: string | null; roof: string | null; aura: string | null; faces: string | null }> = {};
+  const styleMap: Record<number, string> = {};
   for (const row of customizations) {
     const config = row.config;
     if (row.item_id === "custom_color" && typeof config?.color === "string") {
@@ -128,6 +133,9 @@ export async function GET(request: NextRequest) {
         aura: (config?.aura as string) ?? null,
         faces: (config?.faces as string) ?? null,
       };
+    }
+    if (row.item_id === "building_style" && typeof config?.style === "string") {
+      styleMap[row.developer_id] = config.style as string;
     }
     if (row.item_id === "led_banner" && typeof config?.text === "string") {
       ledBannerTextMap[row.developer_id] = config.text as string;
@@ -151,7 +159,7 @@ export async function GET(request: NextRequest) {
   }
 
   // Merge
-  const developers = devs.map((dev) => ({
+  const developers = devs.map((dev) => serializeDeveloper({
     ...dev,
     kudos_count: dev.kudos_count ?? 0,
     visit_count: dev.visit_count ?? 0,
@@ -161,6 +169,7 @@ export async function GET(request: NextRequest) {
     led_banner_text: ledBannerTextMap[dev.id] ?? null,
     achievements: achievementsMap[dev.id] ?? [],
     loadout: loadoutMap[dev.id] ?? null,
+    building_style: styleMap[dev.id] ?? "tower",
     app_streak: dev.app_streak ?? 0,
     raid_xp: dev.raid_xp ?? 0,
     current_week_contributions: dev.current_week_contributions ?? 0,

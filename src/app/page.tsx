@@ -3,8 +3,6 @@ import Skeleton from "@/components/Skeleton";
 import SearchBar from "@/components/SearchBar";
 import UserProfile from "@/components/UserProfile";
 import ActionToolbar from "@/components/ActionToolbar";
-import CodexModal from "@/components/CodexModal";
-import RelicModal from "@/components/RelicModal";
 import { STATIC_RELICS, type Relic } from "@/lib/relics";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { WeatherProvider } from '@/context/WeatherContext';
@@ -37,19 +35,15 @@ import {
 import Image from "next/image";
 import Link from "next/link";
 import ActivityTicker, { type FeedEvent } from "@/components/ActivityTicker";
-import ActivityPanel from "@/components/ActivityPanel";
 import { ITEM_NAMES, ITEM_EMOJIS } from "@/lib/zones";
 import { useStreakCheckin } from "@/lib/useStreakCheckin";
 import { useLiveUsers } from "@/lib/useLiveUsers";
 import { useCodingPresence } from "@/lib/useCodingPresence";
+import { useCityPresence } from "@/lib/multiplayer/useCityPresence";
 import { useRaidSequence } from "@/lib/useRaidSequence";
 import { useDailies } from "@/lib/useDailies";
 import DailiesWidget from "@/components/DailiesWidget";
 import RaidOverlay from "@/components/RaidOverlay";
-import PillModal from "@/components/PillModal";
-import FounderMessage from "@/components/FounderMessage";
-import RabbitCompletion from "@/components/RabbitCompletion";
-import DistrictChooser from "@/components/DistrictChooser";
 import XpBar from "@/components/XpBar";
 import LevelUpToast from "@/components/LevelUpToast";
 import {
@@ -59,8 +53,6 @@ import {
   xpForLevel,
 } from "@/lib/xp";
 import LoadingScreen, { type LoadingStage } from "@/components/LoadingScreen";
-import MiniMap from "@/components/MiniMap";
-import CityAnalyticsDashboard from "@/components/CityAnalyticsDashboard";
 import { getCityCache, setCityCache, clearCityCache } from "@/lib/cityCache";
 import {
   DEFAULT_SKY_ADS,
@@ -116,12 +108,18 @@ const CityCanvas = dynamic(() => import("@/components/CityCanvas"), {
   ),
 });
 
-// Lazy-loaded: pulls in Three.js / @react-three/fiber, so it must stay out of
-// the initial homepage bundle. The Three.js chunk only loads when the raid
-// preview modal is actually opened (raidState.phase === "preview").
-const RaidPreviewModal = dynamic(() => import("@/components/RaidPreviewModal"), {
-  ssr: false,
-});
+const CodexModal = dynamic(() => import("@/components/CodexModal"), { ssr: false });
+const RelicModal = dynamic(() => import("@/components/RelicModal"), { ssr: false });
+const ActivityPanel = dynamic(() => import("@/components/ActivityPanel"), { ssr: false });
+const CityChat = dynamic(() => import("@/components/CityChat"), { ssr: false });
+const RaidPreviewModal = dynamic(() => import("@/components/RaidPreviewModal"), { ssr: false });
+const PillModal = dynamic(() => import("@/components/PillModal"), { ssr: false });
+const FounderMessage = dynamic(() => import("@/components/FounderMessage"), { ssr: false });
+const EArcadeCard = dynamic(() => import("@/components/EArcadeCard"), { ssr: false });
+const RabbitCompletion = dynamic(() => import("@/components/RabbitCompletion"), { ssr: false });
+const DistrictChooser = dynamic(() => import("@/components/DistrictChooser"), { ssr: false });
+const MiniMap = dynamic(() => import("@/components/MiniMap"), { ssr: false });
+const CityAnalyticsDashboard = dynamic(() => import("@/components/CityAnalyticsDashboard"), { ssr: false });
 
 // Feature flags — flip to switch milestone banner
 const MILESTONE_MODE: "stars" | "devs" | "donation" = "donation"; // "donation" = website renewal donation bar, "stars" = LeetCode stars road to 1K, "devs" = total developers
@@ -538,7 +536,7 @@ function MiniLeaderboard({
               </span>
             </span>
             <span className="ml-2 flex-shrink-0 text-[10px] text-muted">
-              {(b[cat.key] as number).toLocaleString()}
+              {((b[cat.key] as number) ?? 0).toLocaleString()}
             </span>
           </a>
         ))}
@@ -778,6 +776,8 @@ function HomeContent() {
   const [discordMembers, setDiscordMembers] = useState<number | null>(null);
   const [pillModalOpen, setPillModalOpen] = useState(false);
   const [founderMessageOpen, setFounderMessageOpen] = useState(false);
+  const [eArcadeOpen, setEArcadeOpen] = useState(false);
+  const [arcadeOnline, setArcadeOnline] = useState<number>(0);
   const [districtChooserOpen, setDistrictChooserOpen] = useState(false);
   const [rabbitCinematic, setRabbitCinematic] = useState(false);
   const [rabbitCinematicPhase, setRabbitCinematicPhase] = useState(-1);
@@ -861,9 +861,27 @@ function HomeContent() {
         })
         .catch(() => { });
     };
+    const fetchArcadeOnline = () => {
+      const supabase = createBrowserSupabase();
+      const cutoff = new Date(Date.now() - 40000).toISOString();
+      supabase
+        .from("arcade_active_players")
+        .select("user_id", { count: "exact", head: true })
+        .gt("last_heartbeat", cutoff)
+        .then((res: any) => {
+          if (res.count != null) {
+            setArcadeOnline(res.count);
+          }
+        })
+        .catch(() => { });
+    };
     fetchStars();
     fetchDiscord();
-    const interval = setInterval(fetchStars, 5 * 60 * 1000); // re-fetch every 5 minutes
+    fetchArcadeOnline();
+    const interval = setInterval(() => {
+      fetchStars();
+      fetchArcadeOnline();
+    }, 45 * 1000); // re-fetch every 45 seconds for fresher counts
     return () => clearInterval(interval);
   }, []);
 
@@ -1403,7 +1421,7 @@ function HomeContent() {
   // During fly mode: only close overlays (profile card) — AirplaneFlight handles pause/exit
   // Outside fly mode: compare → share modal → profile card → focus → explore mode
   useEffect(() => {
-    if (flyMode && !selectedBuilding) return;
+    if (flyMode && !selectedBuilding && !eArcadeOpen) return;
     if (
       !flyMode &&
       !exploreMode &&
@@ -1416,6 +1434,7 @@ function HomeContent() {
       !compareBuilding &&
       !founderMessageOpen &&
       !pillModalOpen &&
+      !eArcadeOpen &&
       !rabbitCinematic &&
       raidState.phase === "idle"
     )
@@ -1429,6 +1448,10 @@ function HomeContent() {
         }
         if (pillModalOpen) {
           setPillModalOpen(false);
+          return;
+        }
+        if (eArcadeOpen) {
+          setEArcadeOpen(false);
           return;
         }
         // Rabbit cinematic
@@ -1502,6 +1525,7 @@ function HomeContent() {
     compareBuilding,
     founderMessageOpen,
     pillModalOpen,
+    eArcadeOpen,
     rabbitCinematic,
     endRabbitCinematic,
     raidState.phase,
@@ -1634,17 +1658,17 @@ function HomeContent() {
       total_contributions: 0,
     };
 
-    // Try pre-computed snapshot first (disabled — snapshot bucket doesn't exist yet for LC city)
-    // try {
-    //   const v = Math.floor(Date.now() / 300_000);
-    //   const snapshotUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/city-data/snapshot.json?v=${v}${cacheBust ? `&_t=${Date.now()}` : ""}`;
-    //   const snapshotRes = await fetch(snapshotUrl);
-    //   if (snapshotRes.ok) {
-    //     const snapshot = await snapshotRes.json();
-    //     allDevs = snapshot.developers;
-    //     cityStats = snapshot.stats;
-    //   }
-    // } catch { /* fall through to chunked */ }
+    // Try pre-computed snapshot first
+    try {
+      const v = Math.floor(Date.now() / 300_000);
+      const snapshotUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/city-data/snapshot.json?v=${v}${cacheBust ? `&_t=${Date.now()}` : ""}`;
+      const snapshotRes = await fetch(snapshotUrl);
+      if (snapshotRes.ok) {
+        const snapshot = await snapshotRes.json();
+        allDevs = snapshot.developers;
+        cityStats = snapshot.stats;
+      }
+    } catch { /* fall through to chunked */ }
 
     // Fallback to chunked API
     if (allDevs.length === 0) {
@@ -1766,17 +1790,17 @@ function HomeContent() {
           total_contributions: 0,
         };
 
-        // Try pre-computed snapshot first (disabled — snapshot bucket doesn't exist yet for LC city)
-        // try {
-        //   const v = Math.floor(Date.now() / 300_000); // changes every 5 min, aligned with cron
-        //   const snapshotUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/city-data/snapshot.json?v=${v}`;
-        //   const snapshotRes = await fetch(snapshotUrl);
-        //   if (snapshotRes.ok) {
-        //     const snapshot = await snapshotRes.json();
-        //     allDevs = snapshot.developers;
-        //     cityStats = snapshot.stats;
-        //   }
-        // } catch { /* fall through to chunked */ }
+        // Try pre-computed snapshot first
+        try {
+          const v = Math.floor(Date.now() / 300_000); // changes every 5 min, aligned with cron
+          const snapshotUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/city-data/snapshot.json?v=${v}`;
+          const snapshotRes = await fetch(snapshotUrl);
+          if (snapshotRes.ok) {
+            const snapshot = await snapshotRes.json();
+            allDevs = snapshot.developers;
+            cityStats = snapshot.stats;
+          }
+        } catch { /* fall through to chunked */ }
 
         // Fallback to chunked API
         if (allDevs.length === 0) {
@@ -2714,6 +2738,27 @@ function HomeContent() {
   const { count: liveUsers, status: liveStatus } = useLiveUsers();
   const { liveCount: codingCount, liveByLogin } = useCodingPresence();
 
+  // Multiplayer presence (Supabase Realtime)
+  const mpLogin = selfLogin || null;
+  const mpAvatarUrl = myBuilding?.avatar_url ?? session?.user?.user_metadata?.avatar_url ?? null;
+  const {
+    players: multiplayerPlayers,
+    playerCount: mpPlayerCount,
+    chatMessages: mpChatMessages,
+    status: mpStatus,
+    sendChat: mpSendChat,
+    sendMove: mpSendMove,
+    isJoined: mpIsJoined,
+  } = useCityPresence(mpLogin, mpAvatarUrl);
+
+  // Use Realtime player count when connected, fall back to Supabase active players count
+  const effectiveLiveCount = mpStatus === "connected" && mpPlayerCount > 0
+    ? mpPlayerCount
+    : liveUsers;
+  const effectiveLiveStatus = mpStatus === "connected"
+    ? "connected"
+    : liveStatus;
+
   // City energy: devs coding -> city lights up
   // 0 devs = ~10% (city sleeping, very dim)
   // 1 dev  = ~16% (city waking up)
@@ -2925,9 +2970,9 @@ function HomeContent() {
         accentColor={theme.accent}
         onClearFocus={() => setFocusedBuilding(null)}
         flyPauseSignal={flyPauseSignal}
-        flyHasOverlay={!!selectedBuilding || showNewWorldPrompt}
+        flyHasOverlay={!!selectedBuilding || showNewWorldPrompt || eArcadeOpen}
         flyStartPaused={showFlyControls}
-        holdRise={loadStage !== "done"}
+        holdRise={loadStage !== "rendering" && loadStage !== "ready" && loadStage !== "done"}
         equippedRelicId={equippedRelicId}
         newWorldCinematic={newWorldCinematicActive}
         onNewWorldCinematicEnd={handleNewWorldCinematicEnd}
@@ -3001,6 +3046,7 @@ function HomeContent() {
         ghostPreviewLogin={ghostPreviewLogin}
         liveByLogin={liveByLogin}
         cityEnergy={cityEnergy}
+        multiplayerPlayers={multiplayerPlayers}
         raidPhase={raidState.phase}
         raidData={raidState.raidData}
         raidAttacker={raidState.attackerBuilding}
@@ -3008,6 +3054,10 @@ function HomeContent() {
         onRaidPhaseComplete={raidActions.onPhaseComplete}
         onLandmarkClick={() => {
           setPillModalOpen(true);
+          setSelectedBuilding(null);
+        }}
+        onEArcadeClick={() => {
+          setEArcadeOpen(true);
           setSelectedBuilding(null);
         }}
         rabbitSighting={rabbitSighting}
@@ -3063,6 +3113,18 @@ function HomeContent() {
           }
         }}
       />
+
+      {/* Multiplayer Chat Overlay */}
+      {!introMode && !flyMode && (
+        <CityChat
+          messages={mpChatMessages}
+          onSend={mpSendChat}
+          status={mpStatus}
+          isJoined={mpIsJoined}
+          playerCount={mpPlayerCount}
+          accentColor={theme.accent}
+        />
+      )}
 
       {/* Loading screen overlay */}
       {loadStage !== "done" && (
@@ -3514,6 +3576,45 @@ function HomeContent() {
             </button>
           </div>
 
+          {/* Explore-mode search — reuses searchUser() so the camera flies (via CameraFocus) to the matched building */}
+          {!compareBuilding && !comparePair && (
+            <div className="pointer-events-auto absolute top-3 left-32 right-3 z-[31] sm:left-36 sm:right-auto sm:top-4 sm:w-72">
+              <form onSubmit={handleSubmit} className="flex items-center gap-2">
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(e) => {
+                    setUsername(e.target.value);
+                    if (feedback?.type === "error") setFeedback(null);
+                  }}
+                  aria-label="Search a LeetCode username and fly to their building"
+                  placeholder="search a username"
+                  className="min-w-0 flex-1 border-[3px] border-border bg-bg/70 px-3 py-1.5 text-base text-cream outline-none backdrop-blur-sm transition-colors placeholder:text-dim normal-case sm:text-[11px]"
+                  onFocus={(e) => (e.currentTarget.style.borderColor = theme.accent)}
+                  onBlur={(e) => (e.currentTarget.style.borderColor = "")}
+                />
+                <button
+                  type="submit"
+                  disabled={loading || !username.trim()}
+                  className="btn-press flex-shrink-0 border-[3px] border-transparent px-3 py-1.5 text-[11px] text-bg disabled:opacity-40"
+                  style={{ backgroundColor: theme.accent }}
+                >
+                  {loading ? <span className="blink-dot inline-block">_</span> : "Go"}
+                </button>
+              </form>
+              {feedback && (
+                <div className="mt-1.5">
+                  <SearchFeedback
+                    feedback={feedback}
+                    accentColor={theme.accent}
+                    onDismiss={() => setFeedback(null)}
+                    onRetry={searchUser}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Theme switcher + Cycle + Radio (bottom-left) — above ticker */}
           <div className="pointer-events-auto fixed bottom-10 left-3 z-[31] flex items-center gap-2 sm:left-4">
             <button
@@ -3636,13 +3737,13 @@ function HomeContent() {
               </span>
             )}
           </a>
-          {liveStatus !== "error" && (
+          {effectiveLiveStatus !== "error" && (
             <div
               className="flex items-center gap-1.5 border-[3px] border-border bg-bg/70 px-2.5 py-1 text-[10px] backdrop-blur-sm"
-              aria-label={`${liveUsers.toLocaleString()} live users`}
+              aria-label={`${effectiveLiveCount.toLocaleString()} live users`}
             >
               <span className="live-dot h-1.5 w-1.5 flex-shrink-0 rounded-full bg-[#4ade80]" aria-hidden="true" />
-              <span className="text-cream">{liveUsers.toLocaleString()}</span>
+              <span className="text-cream">{effectiveLiveCount.toLocaleString()}</span>
               <span className="hidden sm:inline text-muted">live</span>
             </div>
           )}
@@ -4028,15 +4129,6 @@ function HomeContent() {
               <p className="pointer-events-auto mt-1 text-[9px] text-cream/50 normal-case hidden sm:block">
                 built by{" "}
                 <a
-                  href="https://github.com/ishant-27"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="transition-colors hover:text-cream"
-                >
-                  Original Creator
-                </a>
-                {" & "}
-                <a
                   href="https://github.com/Ixotic27"
                   target="_blank"
                   rel="noopener noreferrer"
@@ -4322,6 +4414,28 @@ function HomeContent() {
                   }}
                 >
                   Explore City
+                  <span className="block text-[8px] opacity-60 normal-case">Browse Buildings</span>
+                </button>
+                <button
+                  onClick={() => setEArcadeOpen(true)}
+                  className="btn-press px-7 py-3 text-xs sm:py-3.5 sm:text-sm text-bg"
+                  style={{
+                    backgroundColor: theme.accent,
+                    boxShadow: `4px 4px 0 0 ${theme.shadow}`,
+                  }}
+                >
+                  <span className="relative">
+                    🕹️ E.Arcade
+                    <span
+                      className="absolute -top-3 -right-8 animate-pulse rounded-sm px-1 py-px text-[7px] font-bold leading-none text-bg"
+                      style={{ backgroundColor: theme.accent }}
+                    >
+                      NEW
+                    </span>
+                  </span>
+                  <span className="block text-[8px] opacity-60 normal-case">
+                    {arcadeOnline > 0 ? `${arcadeOnline} online` : "Meet other devs"}
+                  </span>
                 </button>
                 {!isMobile && (
                   <div className="relative">
@@ -4369,15 +4483,7 @@ function HomeContent() {
                         boxShadow: `4px 4px 0 0 ${theme.shadow}`,
                       }}
                     >
-                      <span className="relative">
-                        &#9992; Fly
-                        <span
-                          className="absolute -top-3 -right-8 animate-pulse rounded-sm px-1 py-px text-[7px] font-bold leading-none text-bg"
-                          style={{ backgroundColor: theme.accent }}
-                        >
-                          NEW
-                        </span>
-                      </span>
+                      &#9992; Fly
                       <span className="block text-[8px] opacity-60 normal-case">
                         Collect PX
                       </span>
@@ -6656,6 +6762,16 @@ function HomeContent() {
       )}
       {founderMessageOpen && (
         <FounderMessage onClose={() => setFounderMessageOpen(false)} />
+      )}
+      {eArcadeOpen && (
+        <EArcadeCard
+          onClose={() => setEArcadeOpen(false)}
+          onEnter={() => {
+            window.location.href = "/arcade";
+          }}
+          session={session}
+          onSignIn={handleSignInWithRef}
+        />
       )}
 
       {/* Rabbit Quest Cinematic Overlay */}
