@@ -21,7 +21,6 @@ import DungeonModal from "./DungeonModal";
 
 const Colosseum = lazy(() => import("./Colosseum"));
 const VoidObelisk = lazy(() => import("./VoidObelisk"));
-<DungeonPortal onClick={() => setDungeonOpen(true)} position={landmarkPositions[2]} />
 const DungeonPortal = lazy(() => import("./DungeonPortal"));
 const AstralObservatory = lazy(() => import("./AstralObservatory"));
 const CryptOfEchoes = lazy(() => import("./CryptOfEchoes"));
@@ -2416,6 +2415,7 @@ export default function CityCanvas({
               themeFace={t.building.face}
             />
             <VoidObelisk onClick={() => { }} position={landmarkPositions[1]} />
+            <DungeonPortal onClick={() => setDungeonOpen(true)} position={landmarkPositions[2]} />
             <AstralObservatory onClick={() => { }} position={landmarkPositions[3]} />
             <CryptOfEchoes onClick={() => { }} position={landmarkPositions[4]} />
             <SunkenSanctum onClick={() => { }} position={landmarkPositions[5]} />
