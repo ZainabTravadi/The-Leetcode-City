@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/refs, react-hooks/immutability */
 import { useRef, useEffect, useState, useMemo, lazy, Suspense } from "react";
+import { useRouter } from "next/navigation";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, useGLTF, Stats } from "@react-three/drei";
 import * as THREE from "three";
@@ -2221,6 +2222,7 @@ export default function CityCanvas({
 }: Props) {
   const { isRaining } = useWeather();
   const [dungeonOpen, setDungeonOpen] = useState(false);
+  const router = useRouter();
   const t = THEMES[themeIndex] ?? THEMES[0];
   const showPerf = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("perf");
   const flyPosRef = useRef(new THREE.Vector3());
@@ -2234,7 +2236,9 @@ export default function CityCanvas({
     }
     return max;
   }, [buildings]);
-
+  const handleChronoTowerClick = () => {
+    router.push("/roadmap");
+  };
   const landmarkPositions = useMemo(() => {
     const radius = 380;
     const count = 14;
@@ -2438,7 +2442,10 @@ export default function CityCanvas({
           />
           
           <Suspense fallback={null}>
-            <ChronoTower onClick={() => { }} position={landmarkPositions[8]} />
+            <ChronoTower
+              onClick={handleChronoTowerClick}
+              position={landmarkPositions[8]}
+            />
             <SkyTemple onClick={onSkyTempleClick ?? (() => { })} position={landmarkPositions[9]} />
             <FirecrawlBuilding onClick={() => { }} position={landmarkPositions[10]} />
             <SolanaBuilding onClick={() => { }} position={landmarkPositions[11]} />
