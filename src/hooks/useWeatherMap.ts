@@ -54,18 +54,18 @@ export function useWeatherMap() {
   );
 
   // Map OpenWeather codes (2xx Thunderstorm, 3xx Drizzle, 5xx Rain) to our boolean
-const weatherId = data?.weather?.[0]?.id;
-const isRaining = weatherId >= 200 && weatherId < 600;
+  const weatherId = data?.weather?.[0]?.id;
+  const isRaining = weatherId !== undefined && weatherId >= 200 && weatherId < 600;
 
-// Convert whatever error happens into a clean string text
-const errorMessage = geoError 
-  ? geoError 
-  : error 
-    ? (error instanceof Error ? error.message : String(error)) 
-    : null;
+  // Convert whatever error happens into a clean string text
+  const errorMessage = geoError 
+    ? geoError 
+    : error 
+      ? (error instanceof Error ? error.message : String(error)) 
+      : null;
 
-// Hook is loading if either geolocation or SWR is loading
-const isLoading = isGeoLoading || (isSWRILoading && !geoError);
+  // Hook is loading if either geolocation or SWR is loading
+  const isLoading = isGeoLoading || (isSWRILoading && !geoError);
 
-return { isRaining, data, isLoading, error: errorMessage };
+  return { isRaining, data, isLoading, error: errorMessage };
 }
