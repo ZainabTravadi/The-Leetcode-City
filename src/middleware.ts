@@ -168,12 +168,16 @@ export async function middleware(request: NextRequest) {
   // - External origins: Cashfree SDK, Vercel telemetry, Himetrica analytics
   //   (script + beacons), Google Fonts (stylesheet + font files), and the
   //   alfa-leetcode API used by the dungeon daily challenge.
+  // - connect-src also covers client-side fetches: GitHub/Discord stats on the
+  //   home page, the alfa-leetcode API, and the gstatic font that troika-three-text
+  //   pulls in via fetch (not @font-face). Supabase Storage images are loaded as
+  //   Three.js billboard/customization textures, so img-src must allow *.supabase.co.
   const csp = [
     "default-src 'self'",
     "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://sdk.cashfree.com https://va.vercel-scripts.com https://cdn.himetrica.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "connect-src 'self' wss://*.supabase.co https://*.supabase.co https://*.upstash.io https://leetcode.com https://codeforces.com https://alfa-leetcode-api.onrender.com https://*.himetrica.com",
-    "img-src 'self' data: blob: https://assets.leetcode.com https://avatars.githubusercontent.com",
+    "connect-src 'self' wss://*.supabase.co https://*.supabase.co https://*.upstash.io https://leetcode.com https://codeforces.com https://alfa-leetcode-api.onrender.com https://*.himetrica.com https://api.github.com https://discord.com https://fonts.gstatic.com",
+    "img-src 'self' data: blob: https://assets.leetcode.com https://avatars.githubusercontent.com https://*.supabase.co",
     "media-src 'self'",
     "font-src 'self' https://fonts.gstatic.com",
     "frame-src 'none'",
