@@ -45,8 +45,7 @@ export function AdFilters({
   onRefresh,
   filteredCount,
   totalCount,
-}: AdFiltersProps){
-
+}: AdFiltersProps) {
   return (
     <div className="mb-4 space-y-3">
       {/* Row 1: Period + Status + Search + Refresh */}
@@ -78,7 +77,7 @@ export function AdFilters({
           type="text"
           placeholder="Search brand, id, email..."
           value={filters.q}
-onChange={(e) => setFilter("q", e.target.value)}
+          onChange={(e) => setFilter("q", e.target.value)}
           className="ml-auto min-w-[200px] border border-border bg-bg px-3 py-1.5 text-[11px] text-cream outline-none placeholder:text-dim focus:border-lime"
         />
 
@@ -113,6 +112,16 @@ onChange={(e) => setFilter("q", e.target.value)}
           <option value="all">All sources</option>
           <option value="paid">Paid</option>
           <option value="manual">Manual</option>
+        </select>
+
+        <select
+          value={filters.pageSize}
+          onChange={(e) => setFilter("pageSize", Number(e.target.value))}
+          className="cursor-pointer border border-border bg-bg px-3 py-1.5 text-[11px] text-cream outline-none focus:border-lime"
+        >
+          <option value={10}>10 / page</option>
+          <option value={25}>25 / page</option>
+          <option value={50}>50 / page</option>
         </select>
 
         <p className="ml-auto text-[11px] text-dim">
