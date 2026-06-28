@@ -1,10 +1,10 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { MAX_TEXT_LENGTH } from "@/lib/skyAds";
 
-var mockGetUser = vi.fn();
-var mockFrom = vi.fn();
-var mockRateLimit = vi.fn(async () => ({ ok: true }));
-var mockCreateSession = vi.fn();
+const mockGetUser = vi.fn();
+const mockFrom = vi.fn();
+const mockRateLimit = vi.fn(async () => ({ ok: true }));
+const mockCreateSession = vi.fn();
 
 vi.mock("@/lib/supabase-server", () => ({
   createServerSupabase: vi.fn(() => ({
@@ -35,7 +35,7 @@ vi.mock("@/lib/stripe", () => ({
 }));
 
 vi.mock("@/lib/rate-limit", () => ({
-  rateLimit: (...args: any[]) => mockRateLimit(...args),
+  rateLimit: (...args: Parameters<typeof mockRateLimit>) => mockRateLimit(...args),
 }));
 
 import { POST } from "./route";

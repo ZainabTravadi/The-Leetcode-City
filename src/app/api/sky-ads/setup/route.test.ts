@@ -1,26 +1,30 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { POST } from "./route";
 
-var mockFrom = vi.fn();
-var mockRateLimit = vi.fn(async () => ({ ok: true }));
+const mockFrom = vi.fn();
+const mockRateLimit = vi.fn(async () => ({ ok: true }));
 vi.mock("@/lib/supabase", () => ({
   getSupabaseAdmin: vi.fn(() => ({
     from: mockFrom,
   })),
 }));
 vi.mock("@/lib/rate-limit", () => ({
-  rateLimit: (...args: any[]) => mockRateLimit(...args),
+  rateLimit: (...args: unknown[]) => mockRateLimit(...args),
 }));
 
-let mockAdResponse: any;
+type SkyAdsResponse = {
+  data: { id: string; active: boolean } | null;
+};
+
+let mockAdResponse: SkyAdsResponse;
 
 const buildSkyAdsFrom = () => ({
   select: () => ({
     eq: () => ({
-      maybeSingle: async () => mockAdResponse,
+      maybeSingle: async (): Promise<SkyAdsResponse> => mockAdResponse,
     }),
   }),
-  update: (updatePayload: any) => ({
+  update: () => ({
     eq: async () => ({ error: null }),
   }),
 });
@@ -32,7 +36,7 @@ describe("/api/sky-ads/setup route", () => {
     mockAdResponse = { data: { id: "ad-1", active: true } };
     mockFrom.mockImplementation((table: string) => {
       if (table === "sky_ads") return buildSkyAdsFrom();
-      return {} as any;
+      return {} as unknown;
     });
   });
 
