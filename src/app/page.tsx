@@ -49,6 +49,7 @@ import { useRaidSequence } from "@/lib/useRaidSequence";
 import { useDailies } from "@/lib/useDailies";
 import DailiesWidget from "@/components/DailiesWidget";
 import RaidOverlay from "@/components/RaidOverlay";
+import { getRaidConsumableToastMessage } from "@/lib/raid";
 import XpBar from "@/components/XpBar";
 import LevelUpToast from "@/components/LevelUpToast";
 import {
@@ -565,6 +566,8 @@ function HomeContent() {
 
   // Raid system
   const [raidState, raidActions] = useRaidSequence();
+  const [raidToast, setRaidToast] = useState<string | null>(null);
+  const lastRaidToastIdRef = useRef<string | null>(null);
   const prevRaidPhaseRef = useRef<string>("idle");
   const lastSuccessfulRaidRef = useRef<{
     defenderLogin: string;
@@ -2406,6 +2409,22 @@ function HomeContent() {
   const quotaMissionCompleted = dailiesData?.missions.some(
     (mission) => mission.id === "fly_score_50" && mission.completed,
   );
+
+  useEffect(() => {
+    const raidData = raidState.raidData;
+    if (!raidData) return;
+
+    if (lastRaidToastIdRef.current === raidData.raid_id) return;
+
+    const toastMessage = getRaidConsumableToastMessage(raidData);
+    if (!toastMessage) return;
+
+    lastRaidToastIdRef.current = raidData.raid_id;
+    setRaidToast(toastMessage);
+
+    const timer = setTimeout(() => setRaidToast(null), 4000);
+    return () => clearTimeout(timer);
+  }, [raidState.raidData]);
 
   // Monitor fly score for mission quota
   useEffect(() => {
@@ -5485,6 +5504,18 @@ function HomeContent() {
               }
             }
           `}</style>
+        </div>
+      )}
+
+      {raidToast && (
+        <div className="pointer-events-none fixed left-1/2 top-4 z-[61] -translate-x-1/2">
+          <div
+            className="flex items-center gap-2 border-[2px] border-border bg-bg-raised/95 px-4 py-2 text-[11px] backdrop-blur-sm"
+            style={{ borderColor: theme.accent }}
+          >
+            <span style={{ color: theme.accent }}>✓</span>
+            <span className="text-cream">{raidToast}</span>
+          </div>
         </div>
       )}
 
