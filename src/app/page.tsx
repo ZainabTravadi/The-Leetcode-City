@@ -5508,7 +5508,12 @@ function HomeContent() {
       )}
 
       {raidToast && (
-        <div className="pointer-events-none fixed left-1/2 top-4 z-[61] -translate-x-1/2">
+        <div
+          className="pointer-events-none fixed left-1/2 top-16 z-[61] -translate-x-1/2"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
           <div
             className="flex items-center gap-2 border-[2px] border-border bg-bg-raised/95 px-4 py-2 text-[11px] backdrop-blur-sm"
             style={{ borderColor: theme.accent }}
