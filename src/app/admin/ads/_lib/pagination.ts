@@ -16,7 +16,7 @@ export interface PaginatedResult<T> {
 
 export function getPaginationStateForFilterChange(
   state: PaginationState,
-  key: "pageSize" | keyof Omit<PaginationState, "pageSize">,
+  key: keyof import("./types").AdsFilters,
   value: number | string,
 ): PaginationState {
   if (key === "pageSize") {

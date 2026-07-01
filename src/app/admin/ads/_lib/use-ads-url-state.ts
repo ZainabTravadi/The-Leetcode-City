@@ -45,12 +45,12 @@ function parseParams(params: URLSearchParams): Partial<AdsFilters> {
   const page = params.get("page");
   if (page) {
     const parsedPage = Number(page);
-    if (Number.isFinite(parsedPage) && parsedPage > 0) result.page = parsedPage;
+    if (Number.isInteger(parsedPage) && parsedPage > 0) result.page = parsedPage;
   }
   const pageSize = params.get("pageSize");
   if (pageSize) {
     const parsedPageSize = Number(pageSize);
-    if (Number.isFinite(parsedPageSize) && parsedPageSize > 0) result.pageSize = parsedPageSize;
+    if (Number.isInteger(parsedPageSize) && parsedPageSize > 0) result.pageSize = parsedPageSize;
   }
   return result;
 }

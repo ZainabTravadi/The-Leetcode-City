@@ -234,7 +234,7 @@ export function AdsDashboard() {
           </p>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setFilter("page", Math.max(1, filters.page - 1))}
+              onClick={() => setFilter("page", Math.max(1, paginatedAds.page - 1))}
               disabled={paginatedAds.page === 1}
               className="cursor-pointer border border-border px-3 py-1.5 text-[11px] text-muted transition-colors hover:text-cream disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -244,7 +244,7 @@ export function AdsDashboard() {
               PAGE {paginatedAds.page} / {paginatedAds.totalPages}
             </span>
             <button
-              onClick={() => setFilter("page", Math.min(paginatedAds.totalPages, filters.page + 1))}
+              onClick={() => setFilter("page", Math.min(paginatedAds.totalPages, paginatedAds.page + 1))}
               disabled={paginatedAds.page === paginatedAds.totalPages}
               className="cursor-pointer border border-border px-3 py-1.5 text-[11px] text-muted transition-colors hover:text-cream disabled:cursor-not-allowed disabled:opacity-50"
             >
