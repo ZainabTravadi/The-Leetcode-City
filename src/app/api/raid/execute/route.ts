@@ -16,7 +16,6 @@ import {
 } from "@/lib/raid";
 import { ITEM_UNLOCK_LEVELS } from "@/lib/zones";
 import {
-  getIsoWeekStart,
   getIsoWeekStartDateString,
   getUtcDateString,
 } from "@/lib/week";
@@ -206,6 +205,29 @@ export async function POST(request: Request) {
     }
   }
 
+  const consumeDeveloperItem = async (devId: number, itemId: string) => {
+    const currentWeekStr = getIsoWeekStartDateString();
+    const { data, error } = await admin.rpc("consume_consumable", {
+      p_developer_id: devId,
+      p_item_id: itemId,
+      p_week_start: currentWeekStr,
+    });
+
+    if (error) {
+      console.error("[raid/execute] consume_consumable RPC error:", error.message);
+      return false;
+    }
+
+    return data === true;
+  };
+
+  if (attackerConsumableItemId) {
+    const didConsume = await consumeDeveloperItem(attacker.id, attackerConsumableItemId);
+    if (!didConsume) {
+      return NextResponse.json({ error: "Raid blocked" }, { status: 429 });
+    }
+  }
+
   // Handle defender active defenses (unchanged)
   let activeDefenses: string[] = Array.isArray(defender.active_defenses) ? defender.active_defenses : [];
   let defenderItemUsed = false;
@@ -311,17 +333,6 @@ export async function POST(request: Request) {
   if (boostPurchaseIdToConsume) {
     await admin.from("purchases").update({ status: "consumed" }).eq("id", boostPurchaseIdToConsume);
   }
-
-  const consumeDeveloperItem = async (devId: number, itemId: string) => {
-    const currentWeekStr = getIsoWeekStartDateString();
-    await admin.rpc("consume_consumable", {
-      p_developer_id: devId,
-      p_item_id: itemId,
-      p_week_start: currentWeekStr,
-    });
-  };
-
-  if (attackerConsumableItemId) await consumeDeveloperItem(attacker.id, attackerConsumableItemId);
   if (defenderItemUsed && activeDefenses.length > 0) await consumeDeveloperItem(defender.id, activeDefenses[0]);
 
   if (success) {
