@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin, broadcastToChannel } from "@/lib/supabase";
 import crypto from "crypto";
 
-const _secret = process.env.SUPABASE_SERVICE_ROLE_KEY;
-if (!_secret) {
-  throw new Error("[api/arcade/game] Missing SUPABASE_SERVICE_ROLE_KEY");
+function getSigningSecret(): string {
+  const secret = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!secret) {
+    throw new Error("[api/arcade/game] Missing SUPABASE_SERVICE_ROLE_KEY");
+  }
+  return secret;
 }
-const SECRET: string = _secret;
 const GAME_TARGET_MS = 10000;
 const GAME_TIMEOUT_MS = 60000;
 const VALID_GAMES = ["10s_classic"];
@@ -15,7 +17,7 @@ const VALID_GAMES = ["10s_classic"];
 
 function signToken(userId: string, game: string, startTime: number): string {
   return crypto
-    .createHmac("sha256", SECRET)
+    .createHmac("sha256", getSigningSecret())
     .update(`${userId}:${game}:${startTime}`)
     .digest("hex");
 }
