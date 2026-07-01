@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSupabaseAdmin, broadcastToChannel } from "@/lib/supabase";
 import crypto from "crypto";
 
-const SECRET = process.env.SUPABASE_SERVICE_ROLE_KEY || "fallback-secret";
+const SECRET = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const GAME_TARGET_MS = 10000;
 const GAME_TIMEOUT_MS = 60000;
 const VALID_GAMES = ["10s_classic"];
@@ -23,6 +23,10 @@ function verifyToken(userId: string, game: string, startTime: number, sig: strin
 // POST /api/arcade/game — handles game actions
 export async function POST(req: NextRequest) {
   try {
+    if (!SECRET) {
+      console.error("[api/arcade/game] missing SUPABASE_SERVICE_ROLE_KEY");
+      return NextResponse.json({ error: "Missing SUPABASE_SERVICE_ROLE_KEY" }, { status: 500 });
+    }
     const body = await req.json();
     const { action, game, slug } = body;
 

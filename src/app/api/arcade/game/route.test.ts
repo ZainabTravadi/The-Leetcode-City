@@ -34,10 +34,20 @@ vi.mock('@/lib/supabase', async () => {
 });
 
 describe('arcade game route', () => {
+  let _prevSecret: string | undefined;
   beforeEach(() => {
+    // preserve env
+    _prevSecret = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-secret';
     vi.resetAllMocks();
     // default auth user
     (mockSb.auth.getUser as ReturnType<typeof vi.fn>).mockResolvedValue({ data: { user: { id: 'user-1', user_metadata: {} } }, error: null });
+  });
+
+  afterEach(() => {
+    // restore env
+    if (_prevSecret === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    else process.env.SUPABASE_SERVICE_ROLE_KEY = _prevSecret;
   });
 
   it('processes concurrent submits with one winning RPC', async () => {
