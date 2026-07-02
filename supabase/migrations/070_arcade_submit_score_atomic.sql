@@ -31,8 +31,8 @@ DECLARE
   v_milestones text[] := ARRAY[]::text[];
   v_count integer := 0;
 BEGIN
-  -- Serialize per-developer to avoid races
-  PERFORM pg_advisory_xact_lock(p_developer_id);
+  -- Serialize per-user to avoid races without relying on nullable developer IDs
+  PERFORM pg_advisory_xact_lock(hashtext(p_user_id::text));
 
   -- Upsert arcade_scores atomically
   SELECT best_ms, attempts INTO v_prev_best, v_attempts

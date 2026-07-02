@@ -50,6 +50,50 @@ describe('arcade game route', () => {
     else process.env.SUPABASE_SERVICE_ROLE_KEY = _prevSecret;
   });
 
+  it('passes a null developer id through when no developer profile is linked', async () => {
+    (mockSb.from as ReturnType<typeof vi.fn>).mockImplementation(() => {
+      return {
+        select: () => ({
+          eq: () => ({
+            limit: () => ({ data: [] as DevRow[] }),
+          }),
+        }),
+      } as unknown as ReturnType<typeof vi.fn>;
+    });
+
+    (mockSb.rpc as ReturnType<typeof vi.fn>).mockResolvedValue({
+      data: [{ best_ms: 100, attempts: 1, is_new_record: true, rank: 1, milestones: ['first_try'], px_earned: 5 }],
+      error: null,
+    } as RpcResponse<Record<string, unknown>>);
+
+    const { POST } = await import('./route');
+
+    const startTime = Date.now() - 10000;
+    const crypto = await import('crypto');
+    const SECRET = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+    const signature = crypto.createHmac('sha256', SECRET).update(`user-1:10s_classic:${startTime}`).digest('hex');
+    const reqBody = {
+      action: 'stop',
+      game: '10s_classic',
+      game_token: { startTime, signature },
+    };
+
+    const req = {
+      json: async () => reqBody,
+      headers: { get: () => 'Bearer test-token' },
+    } as unknown as Parameters<typeof POST>[0];
+
+    const res = await POST(req);
+    const json = await res.json();
+
+    expect(json.ok).toBe(true);
+    expect(mockSb.rpc).toHaveBeenCalledTimes(1);
+    expect(mockSb.rpc).toHaveBeenCalledWith(
+      'submit_arcade_score',
+      expect.objectContaining({ p_developer_id: null, p_user_id: 'user-1', p_game: '10s_classic' }),
+    );
+  });
+
   it('processes concurrent submits with one winning RPC', async () => {
     // Mock developer lookup returning id. Support chain .select(...).eq(...).limit(...)
     (mockSb.from as ReturnType<typeof vi.fn>).mockImplementation((_table: string) => {
@@ -76,9 +120,8 @@ describe('arcade game route', () => {
 
     // Create two fake requests
     const startTime = Date.now() - 10000;
-    // compute signature matching server's HMAC with fallback-secret
     const crypto = await import('crypto');
-    const SECRET = process.env.SUPABASE_SERVICE_ROLE_KEY || 'fallback-secret';
+    const SECRET = process.env.SUPABASE_SERVICE_ROLE_KEY!;
     const signature = crypto.createHmac('sha256', SECRET).update(`user-1:10s_classic:${startTime}`).digest('hex');
     const reqBody = {
       action: 'stop',
