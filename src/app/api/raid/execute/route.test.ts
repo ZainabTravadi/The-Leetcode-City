@@ -214,16 +214,16 @@ describe("POST /api/raid/execute", () => {
     });
 
     mockRpc.mockImplementation(async (fn: string) => {
-      if (fn === "consume_consumable") {
-        if (remainingQuantity <= 0) {
-          return { data: false, error: null };
-        }
-        remainingQuantity -= 1;
-        return { data: true, error: null };
-      }
-
       if (fn === "execute_raid") {
         executeRaidCalls += 1;
+        if (remainingQuantity <= 0) {
+          return {
+            data: [{ ok: false, error_code: "consumable", raid_id: null }],
+            error: null,
+          };
+        }
+
+        remainingQuantity -= 1;
         return {
           data: [{ ok: true, error_code: null, raid_id: "raid-1" }],
           error: null,
@@ -259,6 +259,32 @@ describe("POST /api/raid/execute", () => {
     expect(statuses).toEqual([200, 429]);
 
     expect(remainingQuantity).toBe(0);
-    expect(executeRaidCalls).toBe(1);
+    expect(executeRaidCalls).toBe(2);
+  });
+
+  it("does not consume a consumable when execute_raid blocks the raid", async () => {
+    mockRpc.mockImplementation(async (fn: string) => {
+      if (fn === "execute_raid") {
+        return {
+          data: [{ ok: false, error_code: "consumable", raid_id: null }],
+          error: null,
+        };
+      }
+
+      return { data: null, error: null };
+    });
+
+    const response = await POST(
+      new Request("http://localhost/api/raid/execute", {
+        method: "POST",
+        body: JSON.stringify({
+          target_login: "defender",
+          offensive_item_id: "emp_device",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(429);
+    expect(remainingQuantity).toBe(1);
   });
 });

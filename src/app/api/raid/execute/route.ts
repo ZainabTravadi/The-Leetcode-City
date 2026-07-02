@@ -221,13 +221,6 @@ export async function POST(request: Request) {
     return data === true;
   };
 
-  if (attackerConsumableItemId) {
-    const didConsume = await consumeDeveloperItem(attacker.id, attackerConsumableItemId);
-    if (!didConsume) {
-      return NextResponse.json({ error: "Raid blocked" }, { status: 429 });
-    }
-  }
-
   // Handle defender active defenses (unchanged)
   let activeDefenses: string[] = Array.isArray(defender.active_defenses) ? defender.active_defenses : [];
   let defenderItemUsed = false;
@@ -294,7 +287,7 @@ export async function POST(request: Request) {
   if (attackerConsumableItemId) attack.breakdown.boost_item = attackerConsumableItemId;
   if (defenderEffectiveDefense) defense.breakdown.boost_item = defenderEffectiveDefense;
 
-  // ── Atomic raid execution — all guards + INSERT in one DB call ──
+  // ── Atomic raid execution — guards, consumable spend, and INSERT in one DB call ──
   const { data: raidResult, error: raidError } = await admin.rpc("execute_raid", {
     p_attacker_id:       attacker.id,
     p_defender_id:       defender.id,
@@ -305,6 +298,8 @@ export async function POST(request: Request) {
     p_defense_breakdown: defense.breakdown,
     p_vehicle:           vehicle,
     p_tag_style:         tagStyle,
+    p_consumable_item_id: attackerConsumableItemId,
+    p_week_start:        getIsoWeekStartDateString(),
   });
 
   if (raidError) {
@@ -316,10 +311,11 @@ export async function POST(request: Request) {
 
   if (!result?.ok) {
     const errorMap: Record<string, { error: string; status: number }> = {
-      cooldown:    { error: "Too fast, wait before raiding again", status: 429 },
-      daily_cap:   { error: "Daily raid limit reached", status: 429 },
+      cooldown:     { error: "Too fast, wait before raiding again", status: 429 },
+      daily_cap:    { error: "Daily raid limit reached", status: 429 },
       peace_shield: { error: "Target has an active Peace Shield", status: 429 },
-      weekly_pair: { error: "Already raided this target this week", status: 429 },
+      weekly_pair:  { error: "Already raided this target this week", status: 429 },
+      consumable:   { error: "Raid blocked", status: 429 },
     };
     const mapped = errorMap[result?.error_code] ?? { error: "Raid blocked", status: 429 };
     return NextResponse.json({ error: mapped.error }, { status: mapped.status });
